@@ -211,21 +211,24 @@ function renderMap() {
     const tier = worstTier(d);
     const color = TIER_COLOR[tier];
     if (tier === 'critical' || tier === 'high' || tier === 'spoiled') {
-      svgEl('circle', { class: 'halo', cx: p.x, cy: p.y, r: 20, stroke: color }, svg);
+      const halo = svgEl('circle', { class: 'halo', cx: p.x, cy: p.y, r: 20 }, svg);
+      halo.style.stroke = color;
     }
-    const c = svgEl('circle', { class: 'node', cx: p.x, cy: p.y, r: 10, fill: color }, svg);
+    const c = svgEl('circle', { class: 'node', cx: p.x, cy: p.y, r: 10 }, svg);
+    c.style.fill = color;
     const title = svgEl('title', {}, c);
     const lots = (d.lots || []).map((l) => `${l.name} (${l.kg} kg)`).join(', ');
     title.textContent = `${d.name}: ${lots}`;
-    svgEl('text', { class: 'map-label', x: p.x + 13, y: p.y + 4 }, svg).textContent = d.name;
+    placeLabel(svg, p, d.name);
   }
 
   // Pantries.
   for (const p2 of s.pantries) {
     const p = proj(p2);
-    const r = svgEl('rect', { class: 'node', x: p.x - 9, y: p.y - 9, width: 18, height: 18, fill: 'var(--accent)' }, svg);
+    const r = svgEl('rect', { class: 'node', x: p.x - 9, y: p.y - 9, width: 18, height: 18 }, svg);
+    r.style.fill = 'var(--accent)';
     svgEl('title', {}, r).textContent = `${p2.name} (${p2.capacityKg} ${t(lang, 'kgUnit')})`;
-    svgEl('text', { class: 'map-label', x: p.x + 12, y: p.y + 4 }, svg).textContent = p2.name;
+    placeLabel(svg, p, p2.name);
   }
 
   // Numbered stop discs along the route.
@@ -237,6 +240,19 @@ function renderMap() {
   });
 
   renderLegend();
+}
+
+// Labels sit below a node, flipping to the left side near the right edge so
+// the text never clips the viewBox or covers the numbered stop disc.
+function placeLabel(svg, p, text) {
+  const flip = p.x > MAP_W - 150;
+  const el = svgEl('text', {
+    class: 'map-label',
+    x: flip ? p.x - 14 : p.x,
+    y: flip ? p.y + 4 : p.y + 24,
+    'text-anchor': flip ? 'end' : 'middle',
+  }, svg);
+  el.textContent = text;
 }
 
 function renderLegend() {
@@ -492,6 +508,7 @@ function renderScenarioButtons() {
       recompute();
       renderAll();
       syncHash();
+      state._refreshDonors?.();
     });
     wrap.appendChild(b);
   }

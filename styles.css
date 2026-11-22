@@ -539,6 +539,8 @@ textarea#import-text {
   z-index: 50;
 }
 
+.selftest[hidden] { display: none; }
+
 .selftest-card {
   background: var(--paper);
   border-radius: 12px;

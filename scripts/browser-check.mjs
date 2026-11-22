@@ -68,13 +68,28 @@ try {
       if (/^https?:/.test(u) && !u.startsWith(base)) externalRequests.push(u);
     });
 
-    await page.goto(`${base}/`, { waitUntil: 'load' });
-    await page.waitForSelector('#map circle', { timeout: 8000 });
+    try {
+      await page.goto(`${base}/`, { waitUntil: 'load' });
+      await page.waitForSelector('#map circle', { timeout: 8000 });
+    } catch (err) {
+      check(`${vp.name}: page boots and renders map`, false, String(err.message || err).split('\n')[0]);
+      await page.screenshot({ path: `${root}screenshots/${vp.name}.png` }).catch(() => {});
+      await page.close();
+      continue;
+    }
+    check(`${vp.name}: page boots and renders map`, true);
+
+    const step = async (name, fn) => {
+      try { await fn(); check(`${vp.name}: ${name}`, true); }
+      catch (err) { check(`${vp.name}: ${name}`, false, String(err.message || err).split('\n')[0].slice(0, 120)); }
+    };
 
     // Tabs.
     for (const tab of ['shelf', 'boxes', 'manifest', 'data', 'dispatch']) {
-      await page.click(`[data-tab="${tab}"]`);
-      await page.waitForSelector(`#panel-${tab}.active`, { timeout: 4000 });
+      await step(`tab "${tab}" activates`, async () => {
+        await page.click(`[data-tab="${tab}"]`);
+        await page.waitForSelector(`#panel-${tab}.active`, { timeout: 4000 });
+      });
     }
 
     // Scenario switching: click every scenario button.
@@ -172,6 +187,11 @@ try {
     check(`${vp.name}: zero page errors`, pageErrors.length === 0, pageErrors[0] || 'clean');
     check(`${vp.name}: zero external requests`, externalRequests.length === 0, externalRequests[0] || 'clean');
 
+    // Return to the hero view (dispatch map, default scenario) for the gallery shot.
+    await page.click('[data-tab="dispatch"]').catch(() => {});
+    await page.locator('.scn').first().click().catch(() => {});
+    await page.waitForSelector('#map circle', { timeout: 4000 }).catch(() => {});
+    await page.waitForTimeout(250);
     await page.screenshot({ path: `${root}screenshots/${vp.name}.png` });
     await page.close();
   }
