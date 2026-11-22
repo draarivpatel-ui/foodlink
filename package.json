@@ -1,0 +1,14 @@
+{
+  "name": "foodlink",
+  "version": "1.0.0",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "description": "Offline community food-rescue and perishable pantry allocation workbench. Zero dependencies, 100% client-side.",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "start": "node scripts/serve.mjs",
+    "test": "node --test tests/",
+    "audit": "node scripts/browser-check.mjs"
+  }
+}

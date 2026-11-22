@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FoodLink</title>
+<meta name="description" content="FoodLink: offline community food-rescue and perishable pantry allocation workbench. Cold-chain triage, dispatch routing and balanced household boxes, all client-side.">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="topbar">
+  <h1 data-i18n="appTitle">FoodLink</h1>
+  <div class="top-actions">
+    <button id="selftest-btn" class="btn ghost" data-i18n="selfTestButton">Run self-tests</button>
+    <button id="lang-btn" class="btn ghost" data-i18n="langButton" aria-label="Switch language">ES</button>
+    <button id="theme-btn" class="btn ghost" data-i18n="themeButton" aria-label="Toggle theme">Theme</button>
+  </div>
+</header>
+
+<section class="controls" aria-label="Workbench controls">
+  <div class="scenarios" id="scenario-buttons" role="group"></div>
+  <div class="sliders">
+    <label class="slider">
+      <span data-i18n="ambientLabel">Ambient temp</span>
+      <input type="range" id="in-ambient" min="0" max="40" step="1" value="20" aria-label="Ambient temperature">
+      <output id="out-ambient">20 C</output>
+    </label>
+    <label class="slider">
+      <span data-i18n="elapsedLabel">Elapsed time</span>
+      <input type="range" id="in-elapsed" min="0" max="360" step="15" value="0" aria-label="Elapsed minutes">
+      <output id="out-elapsed">0 min</output>
+    </label>
+    <label class="slider">
+      <span data-i18n="capacityLabel">Vehicle capacity</span>
+      <input type="range" id="in-capacity" min="80" max="800" step="20" value="320" aria-label="Vehicle capacity kg">
+      <output id="out-capacity">320 kg</output>
+    </label>
+    <label class="slider">
+      <span data-i18n="speedLabel">Vehicle speed</span>
+      <input type="range" id="in-speed" min="15" max="55" step="1" value="30" aria-label="Vehicle speed kmh">
+      <output id="out-speed">30 km/h</output>
+    </label>
+    <label class="slider">
+      <span data-i18n="coldChainLabel">Cold-chain budget</span>
+      <input type="range" id="in-chain" min="30" max="240" step="15" value="120" aria-label="Cold-chain budget minutes">
+      <output id="out-chain">120 min</output>
+    </label>
+  </div>
+  <p class="scenario-blurb" id="scenario-blurb"></p>
+</section>
+
+<nav class="tabs" role="tablist" aria-label="Workbench views">
+  <button class="tab active" role="tab" aria-selected="true" data-tab="dispatch" id="tab-btn-dispatch" data-i18n="tabDispatch">Dispatch map</button>
+  <button class="tab" role="tab" aria-selected="false" data-tab="shelf" id="tab-btn-shelf" data-i18n="tabShelf">Shelf-life triage</button>
+  <button class="tab" role="tab" aria-selected="false" data-tab="boxes" id="tab-btn-boxes" data-i18n="tabBoxes">Household boxes</button>
+  <button class="tab" role="tab" aria-selected="false" data-tab="manifest" id="tab-btn-manifest" data-i18n="tabManifest">Manifest &amp; checklist</button>
+  <button class="tab" role="tab" aria-selected="false" data-tab="data" id="tab-btn-data" data-i18n="tabData">Data &amp; sharing</button>
+</nav>
+
+<main>
+  <section id="panel-dispatch" class="panel active" role="tabpanel" aria-labelledby="tab-btn-dispatch">
+    <div class="dispatch-grid">
+      <div class="map-card">
+        <svg id="map" viewBox="0 0 800 560" role="img" aria-label="Neighborhood dispatch map"></svg>
+        <div class="legend" id="map-legend"></div>
+      </div>
+      <aside class="route-card">
+        <div class="stat-grid">
+          <div class="stat hero"><span class="stat-num" id="stat-kg">0</span><span class="stat-cap" id="stat-kg-cap" data-i18n="rescuedLabel">Food rescued</span></div>
+          <div class="stat"><span class="stat-num" id="stat-co2">0</span><span class="stat-cap" data-i18n="co2Label">Landfill emissions avoided</span><span class="stat-sub" data-i18n="co2Sub">EPA WARM factor, 2.5 kg CO2e per kg</span></div>
+          <div class="stat"><span class="stat-num" id="stat-spoiled">0</span><span class="stat-cap" data-i18n="spoiledLabel">Lost to spoilage</span></div>
+          <div class="stat"><span class="stat-num" id="stat-km">0</span><span class="stat-cap" data-i18n="routeKm">Route distance</span></div>
+          <div class="stat"><span class="stat-num" id="stat-min">0</span><span class="stat-cap" data-i18n="routeTime">Route time</span></div>
+          <div class="stat"><span class="stat-num" id="stat-method">-</span><span class="stat-cap" data-i18n="routeMethod">Solver</span></div>
+        </div>
+        <ol class="stop-list" id="stop-list"></ol>
+      </aside>
+    </div>
+  </section>
+
+  <section id="panel-shelf" class="panel" role="tabpanel" aria-labelledby="tab-btn-shelf">
+    <p class="panel-note" data-i18n="shelfNote">Life remaining at current ambient temperature</p>
+    <div class="lot-rows" id="lot-rows"></div>
+  </section>
+
+  <section id="panel-boxes" class="panel" role="tabpanel" aria-labelledby="tab-btn-boxes">
+    <div class="box-grid" id="box-grid"></div>
+    <div class="leftovers" id="leftovers"></div>
+  </section>
+
+  <section id="panel-manifest" class="panel" role="tabpanel" aria-labelledby="tab-btn-manifest">
+    <div class="manifest-tools">
+      <button class="btn solid" id="print-btn" data-i18n="printButton">Print manifest</button>
+    </div>
+    <div class="manifest-sheet">
+      <pre id="manifest-pre"></pre>
+      <h2 data-i18n="checklistTitle">Donation safety checklist</h2>
+      <ol id="checklist"></ol>
+    </div>
+  </section>
+
+  <section id="panel-data" class="panel" role="tabpanel" aria-labelledby="tab-btn-data">
+    <div class="data-grid">
+      <div class="data-card">
+        <h2 data-i18n="dataTitle">Data and sharing</h2>
+        <div class="row">
+          <button class="btn" id="export-json" data-i18n="jsonExport">Export JSON</button>
+          <button class="btn" id="export-csv" data-i18n="csvExport">Export scenario CSV</button>
+          <button class="btn" id="copy-link" data-i18n="copyLink">Copy share link</button>
+          <button class="btn danger" id="reset-btn" data-i18n="resetButton">Reset scenario</button>
+        </div>
+        <input id="share-url" class="share-url" readonly aria-label="Shareable URL">
+        <p class="note" data-i18n="shareNote">The whole workbench state rides in the URL hash. No server sees it.</p>
+        <label class="import-label" for="import-text" data-i18n="importLabel">Import JSON or CSV</label>
+        <textarea id="import-text" rows="8" spellcheck="false"></textarea>
+        <button class="btn solid" id="import-btn" data-i18n="importButton">Import</button>
+        <p class="note err" id="import-msg" role="alert"></p>
+      </div>
+      <div class="data-card">
+        <h2 data-i18n="addLotTitle">Add a lot to a donor</h2>
+        <div class="form-grid">
+          <label><span data-i18n="lotEditorDonor">Target donor</span><select id="lot-donor"></select></label>
+          <label><span data-i18n="fieldName">Name</span><input id="lot-name" type="text" value="Rescue crate"></label>
+          <label><span data-i18n="fieldCategory">Category</span><select id="lot-category"></select></label>
+          <label><span data-i18n="fieldKg">kg</span><input id="lot-kg" type="number" min="0.5" step="0.5" value="10"></label>
+          <label><span data-i18n="fieldServings">Servings</span><input id="lot-servings" type="number" min="1" step="1" value="20"></label>
+          <label><span data-i18n="fieldFresh">Fresh hours at 5 C</span><input id="lot-fresh" type="number" min="0.5" step="0.5" value="48"></label>
+          <fieldset class="checks"><legend data-i18n="fieldAllergens">Allergens</legend><div id="lot-allergens"></div></fieldset>
+          <label><span data-i18n="fieldTags">Tags</span><input id="lot-tags" type="text" placeholder="halal; vegetarian"></label>
+        </div>
+        <button class="btn solid" id="add-lot" data-i18n="addLotButton">Add lot</button>
+      </div>
+    </div>
+  </section>
+</main>
+
+<div id="selftest-panel" class="selftest" hidden role="dialog" aria-modal="false" aria-labelledby="selftest-title">
+  <div class="selftest-card">
+    <div class="selftest-head">
+      <h2 id="selftest-title" data-i18n="selfTestTitle">Self-tests</h2>
+      <span id="selftest-score"></span>
+      <button class="btn ghost" id="selftest-close" aria-label="Close">x</button>
+    </div>
+    <ul id="selftest-list"></ul>
+  </div>
+</div>
+
+<footer>
+  <p data-i18n="fictionNote">All places, lots and households are fictional teaching examples.</p>
+</footer>
+
+<script type="module" src="app.mjs"></script>
+</body>
+</html>
