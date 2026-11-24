@@ -9,7 +9,7 @@ Food rescue teams juggle three clocks at once: produce wilting at ambient temper
 ## What it does
 
 - **Cold-chain triage.** Every lot gets a live remaining-life countdown from a Q10 / Arrhenius thermal decay model anchored on the FDA Food Code (41 F / 5 C cold holding, 135 F / 57 C hot holding, cumulative 4-hour danger-zone rule for TCS foods). Warm the ambient slider and watch urgency tiers flip.
-- **Dispatch routing.** An exact solver (exhaustive search up to 8 stops) and a nearest-neighbor + feasibility-aware 2-opt optimizer beyond it. Respects vehicle capacity in kg, donor and pantry time windows, service minutes, and a per-lot cold-chain transit budget. Reports route km, route minutes, rescued kg, spoiled kg, and landfill emissions avoided at the EPA WARM factor of 2.5 kg CO2e per kg of food.
+- **Dispatch routing.** An exact solver (exhaustive search up to 8 stops) and a nearest-neighbor + feasibility-aware 2-opt optimizer beyond it. Respects vehicle capacity in kg, donor and pantry time windows, service minutes, and a per-lot cold-chain transit budget. Reports route km, route minutes, rescued kg, spoiled kg, and landfill emissions avoided at the EPA WARM v15 food-donation low-end factor (0.54 MTCO2E per short ton, about 0.595 kg CO2e per kg delivered; avoided landfilling only, no upstream production credit).
 - **Household box allocation.** A greedy balanced allocator fills pantry boxes against per-person food-group targets (produce, protein, grain, dairy) while enforcing gluten-free, nut-free, dairy-free, halal, vegetarian and diabetic (low sugar, lower sodium) constraints. Every box shows its group balance and nutrient totals.
 - **Four civic scenarios.** Saturday Farmers Market Rescue, School Cafeteria Surplus Share, Storm Power-Outage Cold-Chain Triage, and Thanksgiving Pantry Surge. All places are fictional. A lot editor plus JSON/CSV import and a URL-hash share format make any custom scenario portable.
 - **Bilingual.** English / Espanol toggle for the whole interface, plus a printable dispatch manifest and a donation safety checklist grounded in the Bill Emerson Good Samaritan Food Donation Act.
@@ -55,4 +55,4 @@ FoodLink is a planning and teaching tool. Temperatures, times, distances and con
 
 ## Attribution
 
-Built with Devin (SWE-2) assistance inside T3 Code for implementation, tests and documentation, directed and reviewed by Aariv Patel. Reference factors: FDA Food Code cold/hot holding and the 4-hour TCS rule; EPA WARM food-waste emission factor; USDA MyPlate-style food groups.
+Built with Devin (SWE-2) assistance inside T3 Code for implementation, tests and documentation, directed and reviewed by Aariv Patel. Reference factors: FDA Food Code cold/hot holding and the 4-hour TCS rule; EPA WARM v15 "Modeling Food Donation Benefits in WARM" (2019), Table 1 low-end estimate; USDA MyPlate-style food groups.

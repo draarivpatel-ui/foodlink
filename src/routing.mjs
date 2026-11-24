@@ -6,8 +6,14 @@
 
 import { isTCS } from './spoilage.mjs';
 
-// EPA WARM factor: avoided landfill emissions per kg of food rescued.
-export const CO2E_PER_KG_FOOD = 2.5; // kg CO2e per kg food
+// EPA WARM v15 "Modeling Food Donation Benefits in WARM" (June 2019), Table 1:
+// low-end estimate (avoided landfilling only) is 0.54 MTCO2E per short ton of
+// food donated, the same for every food category. We count only kg actually
+// delivered inside the cold-chain budget, i.e. EPA's "food received", so no
+// extra donation-loss discount applies. 0.54 t / 907.18474 kg = 0.595 kg/kg.
+export const SHORT_TON_KG = 907.18474;
+export const WARM_V15_DONATION_LOW_MTCO2E_PER_SHORT_TON = 0.54;
+export const CO2E_PER_KG_FOOD = (WARM_V15_DONATION_LOW_MTCO2E_PER_SHORT_TON * 1000) / SHORT_TON_KG; // kg CO2e per kg food
 
 export const DEFAULT_SPEED_KMH = 32;
 export const DEFAULT_SERVICE_MIN = 12;

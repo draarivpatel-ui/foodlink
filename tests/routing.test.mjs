@@ -58,11 +58,13 @@ test('travelMinutes halves when speed doubles', () => assert.equal(travelMinutes
 test('travelMinutes throws on zero speed', () => assert.throws(() => travelMinutes(10, 0)));
 test('travelMinutes throws on NaN distance', () => assert.throws(() => travelMinutes(NaN, 30)));
 
-test('CO2e factor is the EPA WARM 2.5', () => assert.equal(CO2E_PER_KG_FOOD, 2.5));
+test('CO2e factor is the EPA WARM v15 donation low-end 0.54 t per short ton', () => assert.ok(Math.abs(CO2E_PER_KG_FOOD - 0.54 * 1000 / 907.18474) < 1e-12));
+test('CO2e factor is about 0.595 kg per kg', () => assert.equal(Math.round(CO2E_PER_KG_FOOD * 1000) / 1000, 0.595));
 test('co2eKg(0) is zero', () => assert.equal(co2eKg(0), 0));
-test('co2eKg(10 kg) is 25 kg CO2e', () => assert.equal(co2eKg(10), 25));
-test('co2eKg scales linearly', () => assert.equal(co2eKg(20), co2eKg(10) * 2));
-test('co2eKg rounds to one decimal', () => assert.equal(co2eKg(0.33), 0.8));
+test('co2eKg(10 kg) is 6 kg CO2e', () => assert.equal(co2eKg(10), 6));
+test('co2eKg(183 kg) is 108.9 kg CO2e', () => assert.equal(co2eKg(183), 108.9));
+test('co2eKg scales linearly (within rounding)', () => assert.ok(Math.abs(co2eKg(200) - co2eKg(100) * 2) <= 0.1));
+test('co2eKg rounds to one decimal', () => assert.equal(co2eKg(0.33), 0.2));
 
 // ---------- context ----------
 

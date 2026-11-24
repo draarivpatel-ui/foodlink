@@ -102,8 +102,8 @@ check('2-opt never makes a plan worse', () => {
   return { ok: notWorse, detail: `${seed.rescuedKg} -> ${refined.rescuedKg} kg` };
 });
 
-check('CO2e counter uses the EPA WARM factor', () => (
-  { ok: Math.abs(co2eKg(10) - 10 * CO2E_PER_KG_FOOD) < 1e-9, detail: '10 kg -> 25 kg CO2e' }
+check('CO2e counter uses the EPA WARM v15 donation factor', () => (
+  { ok: Math.abs(co2eKg(10) - Math.round(10 * CO2E_PER_KG_FOOD * 10) / 10) < 1e-9 && Math.abs(CO2E_PER_KG_FOOD - 0.54 * 1000 / 907.18474) < 1e-12, detail: '10 kg -> 6 kg CO2e' }
 ));
 
 check('haversine: zero distance to self, sane city distance', () => {
