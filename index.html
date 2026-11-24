@@ -25,27 +25,27 @@
   <div class="sliders">
     <label class="slider">
       <span data-i18n="ambientLabel">Ambient temp</span>
-      <input type="range" id="in-ambient" min="0" max="40" step="1" value="20" aria-label="Ambient temperature">
+      <input type="range" id="in-ambient" min="0" max="40" step="1" value="20" aria-label="Ambient temperature" data-i18n-aria="ambientAria">
       <output id="out-ambient">20 C</output>
     </label>
     <label class="slider">
       <span data-i18n="elapsedLabel">Elapsed time</span>
-      <input type="range" id="in-elapsed" min="0" max="360" step="15" value="0" aria-label="Elapsed minutes">
+      <input type="range" id="in-elapsed" min="0" max="360" step="15" value="0" aria-label="Elapsed minutes" data-i18n-aria="elapsedAria">
       <output id="out-elapsed">0 min</output>
     </label>
     <label class="slider">
       <span data-i18n="capacityLabel">Vehicle capacity</span>
-      <input type="range" id="in-capacity" min="80" max="800" step="20" value="320" aria-label="Vehicle capacity kg">
+      <input type="range" id="in-capacity" min="80" max="800" step="20" value="320" aria-label="Vehicle capacity kg" data-i18n-aria="capacityAria">
       <output id="out-capacity">320 kg</output>
     </label>
     <label class="slider">
       <span data-i18n="speedLabel">Vehicle speed</span>
-      <input type="range" id="in-speed" min="15" max="55" step="1" value="30" aria-label="Vehicle speed kmh">
+      <input type="range" id="in-speed" min="15" max="55" step="1" value="30" aria-label="Vehicle speed kmh" data-i18n-aria="speedAria">
       <output id="out-speed">30 km/h</output>
     </label>
     <label class="slider">
       <span data-i18n="coldChainLabel">Cold-chain budget</span>
-      <input type="range" id="in-chain" min="30" max="240" step="15" value="120" aria-label="Cold-chain budget minutes">
+      <input type="range" id="in-chain" min="30" max="240" step="15" value="120" aria-label="Cold-chain budget minutes" data-i18n-aria="coldChainAria">
       <output id="out-chain">120 min</output>
     </label>
   </div>
@@ -166,7 +166,7 @@
           <label><span data-i18n="fieldServings">Servings</span><input id="lot-servings" type="number" min="1" step="1" value="20"></label>
           <label><span data-i18n="fieldFresh">Fresh hours at 5 C</span><input id="lot-fresh" type="number" min="0.5" step="0.5" value="48"></label>
           <fieldset class="checks"><legend data-i18n="fieldAllergens">Allergens</legend><div id="lot-allergens"></div></fieldset>
-          <label><span data-i18n="fieldTags">Tags</span><input id="lot-tags" type="text" placeholder="halal; vegetarian"></label>
+          <label><span data-i18n="fieldTags">Tags</span><input id="lot-tags" type="text" placeholder="e.g., halal; vegetarian" data-i18n-placeholder="tagsPlaceholder"></label>
         </div>
         <button class="btn solid" id="add-lot" data-i18n="addLotButton">Add lot</button>
       </div>

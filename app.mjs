@@ -49,7 +49,7 @@ const state = {
 
 // ---------- state init / hash ----------
 
-function applyScenario(s, id) {
+function applyScenario(s, id, sync = true) {
   state.scenario = s;
   state.scenarioId = id || s.id || 'custom';
   state.dirty = !id;
@@ -58,7 +58,7 @@ function applyScenario(s, id) {
   state.params.capacityKg = s.vehicle?.capacityKg ?? 320;
   state.params.speedKmh = s.vehicle?.speedKmh ?? 30;
   state.params.elapsedMin = 0;
-  syncControls();
+  if (sync) syncControls();
 }
 
 function loadFromHash() {
@@ -67,7 +67,6 @@ function loadFromHash() {
   const res = decodeState(raw);
   if (!res.ok) return false;
   const st = res.state;
-  if (st.params) Object.assign(state.params, pickParams(st.params));
   if (st.ui) {
     if (st.ui.lang === 'es' || st.ui.lang === 'en') state.lang = st.ui.lang;
     if (st.ui.theme === 'dark' || st.ui.theme === 'light') state.theme = st.ui.theme;
@@ -75,11 +74,13 @@ function loadFromHash() {
   if (st.claims) state.claims = normalizeClaims(st.claims);
   if (st.scenario) {
     const v = validateScenario(st.scenario);
-    if (v.ok) applyScenario(st.scenario, null);
+    if (v.ok) applyScenario(st.scenario, null, false);
     else return false;
   } else if (st.scenarioId && SCENARIOS.some((s) => s.id === st.scenarioId)) {
-    applyScenario(getScenario(st.scenarioId), st.scenarioId);
+    applyScenario(getScenario(st.scenarioId), st.scenarioId, false);
   }
+  if (st.params) Object.assign(state.params, pickParams(st.params));
+  syncControls();
   return true;
 }
 
@@ -107,26 +108,32 @@ function recompute() {
   const { scenario, params } = state;
   const startMin = scenario.startMin + params.elapsedMin;
   state.assessments.clear();
-  for (const lot of allLots(scenario)) {
-    const a = assessLot(lot, params.ambientC, params.elapsedMin);
-    Object.assign(lot, { lifeLeftHours: a.lifeLeftHours, dangerMinutes: a.dangerMinutes, spoiled: a.spoiled, tier: a.tier });
-    state.assessments.set(lot.id, a);
-  }
+  const assessedScenario = {
+    ...scenario,
+    donors: scenario.donors.map(donor => ({
+      ...donor,
+      lots: (donor.lots || []).map(lot => {
+        const a = assessLot(lot, params.ambientC, params.elapsedMin);
+        state.assessments.set(lot.id, a);
+        return { ...lot, ...a };
+      }),
+    })),
+  };
 
-  state.plan = planRoute(scenario, {
+  state.plan = planRoute(assessedScenario, {
     capacityKg: params.capacityKg,
     speedKmh: params.speedKmh,
     coldChainMaxMin: params.coldChainMaxMin,
     startMin,
   });
 
-  const lotById = new Map(allLots(scenario).map((l) => [l.id, l]));
+  const lotById = new Map(allLots(assessedScenario).map((l) => [l.id, l]));
   const deliveredIds = new Set();
   for (const v of state.plan.visits || []) for (const id of v.delivered || []) deliveredIds.add(id);
   const deliveredLots = [...deliveredIds].map((id) => lotById.get(id)).filter(Boolean);
   state.allocation = allocateBoxes(deliveredLots, state.scenario.households);
   state.deliveredIds = deliveredIds;
-  state.runs = buildRuns(state.plan, scenario, {
+  state.runs = buildRuns(state.plan, assessedScenario, {
     ambientC: params.ambientC, elapsedMin: params.elapsedMin,
     budgetMin: params.coldChainMaxMin, assessments: state.assessments,
   });
@@ -138,6 +145,12 @@ function applyLang() {
   document.documentElement.lang = state.lang;
   for (const el of document.querySelectorAll('[data-i18n]')) {
     el.textContent = t(state.lang, el.dataset.i18n);
+  }
+  for (const el of document.querySelectorAll('[data-i18n-aria]')) {
+    el.setAttribute('aria-label', t(state.lang, el.dataset.i18nAria));
+  }
+  for (const el of document.querySelectorAll('[data-i18n-placeholder]')) {
+    el.placeholder = t(state.lang, el.dataset.i18nPlaceholder);
   }
   $('selftest-close').setAttribute('aria-label', t(state.lang, 'closeLabel'));
   $('how-close').setAttribute('aria-label', t(state.lang, 'closeLabel'));
@@ -1102,10 +1115,11 @@ function wireControls() {
   // Lot editor.
   const donorSel = $('lot-donor');
   const catSel = $('lot-category');
-  for (const [key, c] of Object.entries(PRODUCT_CLASSES)) {
+  for (const key of Object.keys(PRODUCT_CLASSES)) {
     const o = document.createElement('option');
     o.value = key;
-    o.textContent = c.label;
+    o.dataset.i18n = 'product_' + key;
+    o.textContent = t(state.lang, o.dataset.i18n);
     catSel.appendChild(o);
   }
   const allergenWrap = $('lot-allergens');
@@ -1114,7 +1128,10 @@ function wireControls() {
     const cb = document.createElement('input');
     cb.type = 'checkbox';
     cb.value = a;
-    lab.append(cb, a);
+    const text = document.createElement('span');
+    text.dataset.i18n = 'allergen_' + a;
+    text.textContent = t(state.lang, text.dataset.i18n);
+    lab.append(cb, text);
     allergenWrap.appendChild(lab);
   }
   const refreshDonors = () => {
