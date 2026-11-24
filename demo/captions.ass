@@ -1,0 +1,35 @@
+[Script Info]
+Title: foodlink demo captions
+ScriptType: v4.00+
+PlayResX: 1920
+PlayResY: 1080
+WrapStyle: 0
+ScaledBorderAndShadow: yes
+
+[V4+ Styles]
+Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
+Style: Cap,Helvetica,42,&H00FFFFFF,&H000019FF,&H88141414,&H00000000,-1,0,0,0,100,100,0,0,3,14,0,2,120,120,46,1
+
+[Events]
+Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+Dialogue: 0,0:00:00.52,0:00:05.16,Cap,,0,0,0,,FoodLink turns one browser tab into a food rescue dispatch desk.
+Dialogue: 0,0:00:05.33,0:00:13.26,Cap,,0,0,0,,Every lot, route and household is simulated offline in plain JavaScript, with no accounts and no network calls.
+Dialogue: 0,0:00:13.88,0:00:19.00,Cap,,0,0,0,,The dispatch map routes the volunteer van through donors and pantries.
+Dialogue: 0,0:00:19.17,0:00:26.98,Cap,,0,0,0,,Each stop badge stays glued to its node, and every label picks a clear spot, so the route never overlaps itself.
+Dialogue: 0,0:00:27.60,0:00:31.36,Cap,,0,0,0,,The Dispatch outcome ledger reads off the same plan.
+Dialogue: 0,0:00:31.53,0:00:41.25,Cap,,0,0,0,,This farmers market run rescues one hundred eighty three kilograms and four hundred sixty four servings, with nothing lost to spoilage.
+Dialogue: 0,0:00:41.42,0:00:53.63,Cap,,0,0,0,,Landfill emissions avoided read one hundred eight point nine kilograms, at the EPA WARM version fifteen low end factor of zero point five nine five per kilogram delivered.
+Dialogue: 0,0:00:53.80,0:01:01.44,Cap,,0,0,0,,Tightest cold chain margin, route kilometers, minutes and the exact solver all recompute on every control.
+Dialogue: 0,0:01:02.06,0:01:07.23,Cap,,0,0,0,,Shelf life triage counts every lot down with a Q ten thermal decay model.
+Dialogue: 0,0:01:07.40,0:01:16.29,Cap,,0,0,0,,Each row reads spoils in minutes at the current ambient temperature, capped by the four hour danger zone clock for T C S foods.
+Dialogue: 0,0:01:16.46,0:01:23.22,Cap,,0,0,0,,Warm the slider and the urgency tiers flip in place, while the spoils in bar keeps its own color.
+Dialogue: 0,0:01:23.84,0:01:27.77,Cap,,0,0,0,,The household allocator packs balanced pantry boxes.
+Dialogue: 0,0:01:27.94,0:01:38.95,Cap,,0,0,0,,Produce, protein, grain and dairy fill against each family's size, while gluten free, nut free, halal, vegetarian and diabetic rules stay hard constraints.
+Dialogue: 0,0:01:39.12,0:01:44.37,Cap,,0,0,0,,Unmet groups are named on every card, and leftovers are counted honestly.
+Dialogue: 0,0:01:44.99,0:01:53.39,Cap,,0,0,0,,Four civic scenarios ship in the bench, from a farmers market to a school cafeteria, a storm outage and a holiday surge.
+Dialogue: 0,0:01:53.56,0:02:01.09,Cap,,0,0,0,,Picking the storm run rewires donors, windows, vehicles and households, and the route replans on the spot.
+Dialogue: 0,0:02:01.71,0:02:05.16,Cap,,0,0,0,,The whole interface flips to Spanish in one tap.
+Dialogue: 0,0:02:05.33,0:02:15.05,Cap,,0,0,0,,The manifest tab prints the dispatch sheet and a donation safety checklist, and the data tab exports the scenario as JSON or a share link.
+Dialogue: 0,0:02:15.67,0:02:20.76,Cap,,0,0,0,,Twenty nine invariants run live in the page from the self tests button.
+Dialogue: 0,0:02:20.93,0:02:29.89,Cap,,0,0,0,,Eight hundred forty five Node tests guard the engines, re verified live inside this recording run with zero honesty findings.
+Dialogue: 0,0:02:30.06,0:02:33.55,Cap,,0,0,0,,FoodLink. Plan the rescue before the clock does.

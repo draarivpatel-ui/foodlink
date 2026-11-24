@@ -1,0 +1,7 @@
+FoodLink - verification proof
+commit: e37fcf0 (captured during scripts/record-demo.mjs)
+
+$ node --test tests/
+  tests 845, pass 845, fail 0
+$ hark_honesty_and_defect_harness.py --audit <repo>
+  Audited 31 files in foodlink: 0 violation(s).

@@ -1,0 +1,28 @@
+FoodLink turns one browser tab into a food rescue dispatch desk.
+Every lot, route and household is simulated offline in plain JavaScript, with no accounts and no network calls.
+
+The dispatch map routes the volunteer van through donors and pantries.
+Each stop badge stays glued to its node, and every label picks a clear spot, so the route never overlaps itself.
+
+The Dispatch outcome ledger reads off the same plan.
+This farmers market run rescues one hundred eighty three kilograms and four hundred sixty four servings, with nothing lost to spoilage.
+Landfill emissions avoided read one hundred eight point nine kilograms, at the EPA WARM version fifteen low end factor of zero point five nine five per kilogram delivered.
+Tightest cold chain margin, route kilometers, minutes and the exact solver all recompute on every control.
+
+Shelf life triage counts every lot down with a Q ten thermal decay model.
+Each row reads spoils in minutes at the current ambient temperature, capped by the four hour danger zone clock for T C S foods.
+Warm the slider and the urgency tiers flip in place, while the spoils in bar keeps its own color.
+
+The household allocator packs balanced pantry boxes.
+Produce, protein, grain and dairy fill against each family's size, while gluten free, nut free, halal, vegetarian and diabetic rules stay hard constraints.
+Unmet groups are named on every card, and leftovers are counted honestly.
+
+Four civic scenarios ship in the bench, from a farmers market to a school cafeteria, a storm outage and a holiday surge.
+Picking the storm run rewires donors, windows, vehicles and households, and the route replans on the spot.
+
+The whole interface flips to Spanish in one tap.
+The manifest tab prints the dispatch sheet and a donation safety checklist, and the data tab exports the scenario as JSON or a share link.
+
+Twenty nine invariants run live in the page from the self tests button.
+Eight hundred forty five Node tests guard the engines, re verified live inside this recording run with zero honesty findings.
+FoodLink. Plan the rescue before the clock does.

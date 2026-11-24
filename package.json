@@ -9,6 +9,9 @@
   "scripts": {
     "start": "node scripts/serve.mjs",
     "test": "node --test tests/",
-    "audit": "node scripts/browser-check.mjs"
+    "audit": "node scripts/browser-check.mjs",
+    "demo:synth": "node scripts/record-demo.mjs synth",
+    "demo:capture": "node scripts/record-demo.mjs capture",
+    "demo:check": "node scripts/record-demo.mjs check"
   }
 }

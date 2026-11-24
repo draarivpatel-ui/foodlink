@@ -1,0 +1,83 @@
+1
+00:00:00,520 --> 00:00:05,163
+FoodLink turns one browser tab into a food rescue dispatch desk.
+
+2
+00:00:05,333 --> 00:00:13,257
+Every lot, route and household is simulated offline in plain JavaScript, with no accounts and no network calls.
+
+3
+00:00:13,878 --> 00:00:19,002
+The dispatch map routes the volunteer van through donors and pantries.
+
+4
+00:00:19,172 --> 00:00:26,976
+Each stop badge stays glued to its node, and every label picks a clear spot, so the route never overlaps itself.
+
+5
+00:00:27,596 --> 00:00:31,359
+The Dispatch outcome ledger reads off the same plan.
+
+6
+00:00:31,529 --> 00:00:41,253
+This farmers market run rescues one hundred eighty three kilograms and four hundred sixty four servings, with nothing lost to spoilage.
+
+7
+00:00:41,423 --> 00:00:53,628
+Landfill emissions avoided read one hundred eight point nine kilograms, at the EPA WARM version fifteen low end factor of zero point five nine five per kilogram delivered.
+
+8
+00:00:53,799 --> 00:01:01,444
+Tightest cold chain margin, route kilometers, minutes and the exact solver all recompute on every control.
+
+9
+00:01:02,063 --> 00:01:07,233
+Shelf life triage counts every lot down with a Q ten thermal decay model.
+
+10
+00:01:07,403 --> 00:01:16,288
+Each row reads spoils in minutes at the current ambient temperature, capped by the four hour danger zone clock for T C S foods.
+
+11
+00:01:16,458 --> 00:01:23,225
+Warm the slider and the urgency tiers flip in place, while the spoils in bar keeps its own color.
+
+12
+00:01:23,844 --> 00:01:27,774
+The household allocator packs balanced pantry boxes.
+
+13
+00:01:27,944 --> 00:01:38,947
+Produce, protein, grain and dairy fill against each family's size, while gluten free, nut free, halal, vegetarian and diabetic rules stay hard constraints.
+
+14
+00:01:39,118 --> 00:01:44,367
+Unmet groups are named on every card, and leftovers are counted honestly.
+
+15
+00:01:44,987 --> 00:01:53,395
+Four civic scenarios ship in the bench, from a farmers market to a school cafeteria, a storm outage and a holiday surge.
+
+16
+00:01:53,565 --> 00:02:01,094
+Picking the storm run rewires donors, windows, vehicles and households, and the route replans on the spot.
+
+17
+00:02:01,714 --> 00:02:05,158
+The whole interface flips to Spanish in one tap.
+
+18
+00:02:05,328 --> 00:02:15,051
+The manifest tab prints the dispatch sheet and a donation safety checklist, and the data tab exports the scenario as JSON or a share link.
+
+19
+00:02:15,671 --> 00:02:20,760
+Twenty nine invariants run live in the page from the self tests button.
+
+20
+00:02:20,930 --> 00:02:29,894
+Eight hundred forty five Node tests guard the engines, re verified live inside this recording run with zero honesty findings.
+
+21
+00:02:30,065 --> 00:02:33,549
+FoodLink. Plan the rescue before the clock does.
