@@ -266,7 +266,8 @@ button { font: inherit; cursor: pointer; }
   white-space: nowrap;
 }
 
-.tab:hover { color: var(--ink); }
+.tab { transition: color 0.15s, border-color 0.15s; }
+.tab:hover { color: var(--ink); border-bottom-color: var(--line); }
 .tab.active { color: var(--ink); border-bottom-color: var(--accent); }
 
 /* ---------- panels ---------- */
@@ -334,6 +335,7 @@ main { padding: 20px 24px 32px; }
   stroke-linejoin: round;
 }
 .map-label.depot { fill: var(--ink-soft); font-style: italic; }
+.map-label-plate { fill: var(--map-bg); opacity: 0.86; }
 .spoiled-x { stroke: var(--spoiled); stroke-width: 2.4; }
 
 @keyframes pulse {
@@ -343,7 +345,7 @@ main { padding: 20px 24px 32px; }
 
 @media (prefers-reduced-motion: reduce) {
   .halo { animation: none; }
-  .btn, .scn { transition: none; }
+  .btn, .scn, .tab, .bar .fill.danger { transition: none; }
 }
 
 /* ---------- outcome ledger ---------- */
@@ -520,7 +522,8 @@ main { padding: 20px 24px 32px; }
 .bar .fill.tier-watch { background: var(--watch); }
 .bar .fill.tier-stable { background: var(--stable); }
 .bar .fill.tier-spoiled { background: var(--spoiled); }
-.bar .fill.danger { background: repeating-linear-gradient(45deg, var(--red), var(--red) 4px, var(--amber) 4px, var(--amber) 8px); }
+.bar .fill.danger { background: var(--high); transition: width 0.35s cubic-bezier(0.16, 1, 0.3, 1); }
+.bar .fill.danger.hot { background: var(--crit); }
 
 .bar-caption { font-size: 12px; color: var(--ink-soft); display: block; margin-top: 4px; font-variant-numeric: tabular-nums; }
 
@@ -575,18 +578,26 @@ main { padding: 20px 24px 32px; }
   max-width: 860px;
 }
 
-.manifest-sheet h2 { font-size: 19px; margin-top: 20px; }
+.manifest-sheet h2 {
+  font-size: 19px;
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid var(--line-soft);
+}
 
 #manifest-pre {
   font-family: var(--mono);
   font-size: 12.5px;
+  line-height: 1.6;
   white-space: pre-wrap;
   word-break: break-word;
   margin: 0;
   color: var(--ink);
 }
 
-#checklist li { margin: 6px 0; font-size: 13.5px; }
+#checklist { margin: 12px 0 0; padding-left: 26px; }
+#checklist li { margin: 8px 0; padding-left: 4px; font-size: 13.5px; line-height: 1.5; max-width: 76ch; }
+#checklist li::marker { color: var(--accent-ink); font-weight: 700; font-variant-numeric: tabular-nums; }
 
 /* ---------- data ---------- */
 
@@ -695,6 +706,7 @@ textarea#import-text {
   gap: 7px;
   border-color: var(--accent);
   color: var(--accent-ink);
+  white-space: nowrap;
 }
 .how-btn:hover { background: var(--accent); color: var(--on-tier); border-color: var(--accent); }
 .how-btn svg { flex: none; }
@@ -999,6 +1011,21 @@ footer {
   .sliders { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 
+/* Tablet header: title, help and actions on one line, the offline badge
+   on its own line, so neither language pushes buttons off screen. */
+@media (min-width: 641px) and (max-width: 1120px) {
+  .topbar {
+    display: grid;
+    grid-template-columns: auto auto minmax(0, 1fr) auto;
+    grid-template-areas: "title how . actions" "badge badge badge badge";
+    gap: 10px 14px;
+  }
+  .topbar h1 { grid-area: title; }
+  .how-btn { grid-area: how; }
+  .top-actions { grid-area: actions; flex-wrap: nowrap; }
+  .sim-badge { grid-area: badge; margin: 0; justify-self: start; }
+}
+
 @media (max-width: 1100px) {
   .lot-row {
     grid-template-columns: minmax(0, 1.4fr) 110px 60px minmax(0, 1.6fr) 84px;
@@ -1020,7 +1047,14 @@ footer {
   .board-figures { grid-template-columns: 1fr 1fr 1fr; }
   .fig-cover { grid-column: 1 / -1; border-bottom: 1px solid var(--line-soft); }
   .fig:nth-child(2) { border-left: none; }
-  .route-card { order: -1; }
+  /* One column: the aside's cards join the grid so the map can sit
+     right after the headline result instead of below every stop. */
+  .dispatch-grid { gap: 14px; }
+  .route-card { display: contents; }
+  .map-card { order: 0; }
+  .outcome { order: 1; }
+  .coverage { order: 2; margin-top: 0; }
+  .stop-list { order: 3; margin-top: 0; }
   .data-grid { grid-template-columns: 1fr; }
 }
 
@@ -1062,7 +1096,11 @@ footer {
   .lot-row .catcell { justify-self: start; }
   .stop-list .meta { font-size: 12px; }
   .form-grid { grid-template-columns: 1fr; }
-  .manifest-sheet { padding: 14px 16px; }
+  .manifest-sheet { padding: 18px 18px 20px; }
+  #manifest-pre { font-size: 12px; }
+  #checklist { padding-left: 22px; }
+  .outcome { order: 0; }
+  .map-card { order: 1; padding: 8px; }
   .legend { font-size: 12px; gap: 6px 12px; }
   .board-head h2 { font-size: 22px; flex-basis: 100%; }
   .board-actions .btn { padding: 6px 10px; font-size: 12.5px; }
@@ -1101,6 +1139,6 @@ footer {
   body.print-brief .brief-card { border: none; padding: 0; position: static; background: #fff; }
   body.print-brief #brief-pre { max-height: none; overflow: visible; font-size: 11.5px; color: #000; }
   body.print-brief .brief-status { display: none; }
-  .manifest-sheet { border: none; padding: 0; max-width: none; }
+  .manifest-sheet { border: none; padding: 0; max-width: none; background: none; }
   body { background: #fff; color: #000; font-size: 12px; }
 }

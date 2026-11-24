@@ -354,6 +354,11 @@ function renderMap() {
       { ax: x - w / 2, ay: y + gap + lineH * 0.9, anchor: 'middle' },
       { ax: x + gap, ay: y + gap * 0.4, anchor: 'start' },
       { ax: x - gap - w, ay: y + gap * 0.4, anchor: 'end' },
+      // Diagonal corners clear the node's square box on both axes.
+      { ax: x + gap, ay: y - gap - lineH, anchor: 'start' },
+      { ax: x - gap - w, ay: y - gap - lineH, anchor: 'end' },
+      { ax: x + gap, ay: y + gap, anchor: 'start' },
+      { ax: x - gap - w, ay: y + gap, anchor: 'end' },
     ];
     let spot = null;
     for (const c of cands) {
@@ -365,6 +370,16 @@ function renderMap() {
     }
     if (!spot) continue;
     placed.push(spot.box);
+    // A soft plate under each name keeps the dashed route from striking
+    // through the words; it fills exactly the box already cleared above.
+    svgEl('rect', {
+      class: 'map-label-plate',
+      x: spot.box.x.toFixed(1),
+      y: spot.box.y.toFixed(1),
+      width: w.toFixed(1),
+      height: lineH.toFixed(1),
+      rx: (lineH / 2).toFixed(1),
+    }, svg);
     const tx = spot.anchor === 'middle' ? spot.box.x + w / 2 : spot.anchor === 'start' ? spot.box.x + 3 : spot.box.x + w - 3;
     const el = svgEl('text', {
       class: lb.cls,
@@ -535,8 +550,9 @@ function renderShelf() {
       const dbar = document.createElement('div');
       dbar.className = 'bar';
       const dfill = document.createElement('div');
-      dfill.className = 'fill danger';
-      dfill.style.width = `${Math.min(100, ((a.dangerMinutes ?? 0) / DANGER_ZONE_LIMIT_MIN) * 100)}%`;
+      const used = (a.dangerMinutes ?? 0) / DANGER_ZONE_LIMIT_MIN;
+      dfill.className = used >= 0.5 ? 'fill danger hot' : 'fill danger';
+      dfill.style.width = `${Math.min(100, used * 100)}%`;
       dbar.appendChild(dfill);
       const dcap = document.createElement('span');
       dcap.className = 'bar-caption';
