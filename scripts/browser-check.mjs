@@ -100,6 +100,42 @@ try {
     }
     check(`${vp.name}: ${scnCount} scenario buttons switch`, scnCount >= 4, `${scnCount} buttons`);
 
+    // Map legibility on every scenario: no label overlaps a node, halo, stop
+    // badge, another label or the frame; every stop badge touches its own
+    // node and clears every other node and badge.
+    const MAP_GEOMETRY = () => {
+      const svg = document.getElementById('map');
+      const ov = (a, b) => a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+      const circ = (c) => { const r = +c.getAttribute('r'); return { x: +c.getAttribute('cx') - r, y: +c.getAttribute('cy') - r, w: 2 * r, h: 2 * r, cx: +c.getAttribute('cx'), cy: +c.getAttribute('cy'), r }; };
+      const nodes = [...svg.querySelectorAll('.node')].map((n) => {
+        const b = n.getBBox();
+        return { id: n.dataset.stop || 'depot', x: b.x, y: b.y, w: b.width, h: b.height, cx: b.x + b.width / 2, cy: b.y + b.height / 2, r: Math.hypot(b.width, b.height) / 2 };
+      });
+      const halos = [...svg.querySelectorAll('.halo')].map(circ);
+      const badges = [...svg.querySelectorAll('.stop-disc')].map((c) => ({ id: c.dataset.stop, ...circ(c) }));
+      const labels = [...svg.querySelectorAll('text.map-label')].map((t) => { const b = t.getBBox(); return { text: t.textContent, x: b.x, y: b.y, w: b.width, h: b.height }; });
+      const bad = [];
+      labels.forEach((l, i) => {
+        for (const o of [...nodes, ...halos, ...badges]) if (ov(l, o)) bad.push(`label ${l.text} hits a marker`);
+        labels.forEach((m, j) => { if (j > i && ov(l, m)) bad.push(`label ${l.text} hits ${m.text}`); });
+        if (l.x < 0 || l.y < 0 || l.x + l.w > 800 || l.y + l.h > 560) bad.push(`label ${l.text} leaves the frame`);
+      });
+      badges.forEach((b, i) => {
+        const own = nodes.find((n) => n.id === b.id);
+        // Diagonal corner of a square pantry is ~2.7 units past its inscribed radius.
+        if (!own || Math.hypot(b.cx - own.cx, b.cy - own.cy) > Math.min(own.w, own.h) / 2 + b.r + 4) bad.push(`badge for ${b.id} detached from its node`);
+        for (const n of nodes) if (n.id !== b.id && ov(b, n)) bad.push(`badge for ${b.id} covers node ${n.id}`);
+        badges.forEach((c, j) => { if (j > i && ov(b, c)) bad.push(`badges ${b.id} and ${c.id} overlap`); });
+      });
+      return { labels: labels.length, badges: badges.length, bad };
+    };
+    for (let i = 0; i < scnCount; i++) {
+      await page.locator('.scn').nth(i).click();
+      await page.waitForTimeout(120);
+      const g = await page.evaluate(MAP_GEOMETRY);
+      check(`${vp.name}: scenario ${i + 1} map has no label or badge collisions`, g.bad.length === 0 && g.badges > 0 && g.labels > 0, g.bad[0] || `${g.labels} labels, ${g.badges} badges`);
+    }
+
     // Sliders: move each to an extreme and back.
     for (const id of ['in-ambient', 'in-elapsed', 'in-capacity', 'in-speed', 'in-chain']) {
       const el = page.locator(`#${id}`);

@@ -3,7 +3,7 @@
 
 import {
   PRODUCT_CLASSES, DANGER_ZONE_LIMIT_MIN,
-  assessLot, formatHours, compareRescuePriority, cToF,
+  assessLot, formatHours, compareRescuePriority, cToF, urgencyTier,
 } from './src/spoilage.mjs';
 import {
   FOOD_GROUPS, ALLERGENS,
@@ -228,6 +228,7 @@ function renderMap() {
   }
 
   const obstacles = [{ x: -1, y: -1, w: 0, h: 0 }];
+  const nodeBoxById = new Map();
   const labels = [];
 
   // Depot.
@@ -249,29 +250,33 @@ function renderMap() {
       halo.style.stroke = color;
       r = 22;
     }
-    const c = svgEl('circle', { class: `node node-donor tier-${tier}`, cx: p.x, cy: p.y, r: 10 }, svg);
+    const c = svgEl('circle', { class: `node node-donor tier-${tier}`, cx: p.x, cy: p.y, r: 10, 'data-stop': d.id }, svg);
     c.style.fill = color;
     const title = svgEl('title', {}, c);
     const lots = (d.lots || []).map((l) => `${l.name} (${l.kg} kg)`).join(', ');
     title.textContent = `${d.name}: ${lots}`;
-    obstacles.push(circleBox(p.x, p.y, r));
+    const nb = circleBox(p.x, p.y, r);
+    obstacles.push(nb);
+    nodeBoxById.set(d.id, nb);
     labels.push({ p, r, text: d.name, cls: 'map-label' });
   }
 
   // Pantries.
   for (const p2 of s.pantries) {
     const p = proj(p2);
-    const r = svgEl('rect', { class: 'node node-pantry', x: p.x - 9, y: p.y - 9, width: 18, height: 18, rx: 3 }, svg);
+    const r = svgEl('rect', { class: 'node node-pantry', x: p.x - 9, y: p.y - 9, width: 18, height: 18, rx: 3, 'data-stop': p2.id }, svg);
     r.style.fill = 'var(--accent)';
     svgEl('title', {}, r).textContent = `${p2.name} (${p2.capacityKg} ${t(lang, 'kgUnit')})`;
-    obstacles.push(circleBox(p.x, p.y, 12));
+    const nb = circleBox(p.x, p.y, 12);
+    obstacles.push(nb);
+    nodeBoxById.set(p2.id, nb);
     labels.push({ p, r: 12, text: p2.name, cls: 'map-label' });
   }
 
   // Numbered stop badges sit up and to the right of each node so the node
   // keeps its urgency color. A stop visited twice shows both numbers.
-  // Each badge tries the four diagonal corners of its node and takes the
-  // first one clear of other nodes and badges (close neighbors otherwise stack).
+  // Each badge tries eight spots touching its node and takes the first one
+  // clear of other nodes and badges (close neighbors otherwise stack).
   const nodeBoxes = obstacles.slice();
   const badges = [];
   visits.forEach((v, i) => {
@@ -279,25 +284,28 @@ function renderMap() {
     if (!p) return;
     const br = 9 * k;
     const d = 6 + br * 0.85;
-    const own = circleBox(p.x, p.y, 13);
-    const corners = [[1, -1], [-1, -1], [1, 1], [-1, 1]];
-    const tryAt = (sx, sy, step) => {
-      const bx = p.x + sx * (d + step * (2 * br + 1));
-      const by = p.y + sy * d;
+    const own = nodeBoxById.get(v.stopId);
+    const D = Math.SQRT2 * d;
+    // Diagonals first (classic badge spot), then the four sides; only if all
+    // eight touch something does a badge step outward.
+    const dirs = [-45, -135, 45, 135, 0, 180, -90, 90].map((deg) => [Math.cos((deg * Math.PI) / 180), Math.sin((deg * Math.PI) / 180)]);
+    const tryAt = (ux, uy, step) => {
+      const bx = p.x + ux * (D + step * (2 * br + 1));
+      const by = p.y + uy * (D + step * (2 * br + 1));
       const box = circleBox(bx, by, br + 1);
       const clear = !badges.some((b) => overlaps(box, b))
-        && !nodeBoxes.some((n) => n !== own && !(n.x === own.x && n.y === own.y) && overlaps(box, n))
+        && !nodeBoxes.some((n) => n !== own && overlaps(box, n))
         && bx - br > 0 && bx + br < MAP_W && by - br > 0 && by + br < MAP_H;
       return clear ? { bx, by, box } : null;
     };
     let spot = null;
     for (let step = 0; step < 3 && !spot; step++) {
-      for (const [sx, sy] of corners) { spot = tryAt(sx, sy, step); if (spot) break; }
+      for (const [ux, uy] of dirs) { spot = tryAt(ux, uy, step); if (spot) break; }
     }
     if (!spot) spot = { bx: p.x + d, by: p.y - d, box: circleBox(p.x + d, p.y - d, br + 1) };
     const { bx, by } = spot;
     badges.push(spot.box);
-    svgEl('circle', { class: 'stop-disc', cx: bx.toFixed(1), cy: by.toFixed(1), r: br.toFixed(1) }, svg);
+    svgEl('circle', { class: 'stop-disc', cx: bx.toFixed(1), cy: by.toFixed(1), r: br.toFixed(1), 'data-stop': v.stopId }, svg);
     svgEl('text', { class: 'stop-num', x: bx.toFixed(1), y: (by + 3.8 * k).toFixed(1), 'font-size': (11 * k).toFixed(1) }, svg).textContent = String(i + 1);
     obstacles.push(circleBox(bx, by, br + 1));
   });
@@ -479,10 +487,14 @@ function renderShelf() {
     cap.className = 'bar-caption';
     cap.textContent = `${t(state.lang, 'lifeLeft')}: ${a.spoiled ? t(state.lang, 'lifeAtRef', { t: '0 h' }) : t(state.lang, 'lifeAtRef', { t: formatHours(a.lifeLeftHours ?? 0) })}`;
     const win = document.createElement('span');
-    win.className = `spoil-window tier-text-${tier}`;
+    const winH = ambientWindowHours(lot, a, state.params.ambientC);
+    // Colored by the window itself (same hour thresholds as the engine's
+    // tiers) so a lot that is Stable in the cooler but has 4 h on the table
+    // reads as urgent here.
+    win.className = `spoil-window tier-text-${a.spoiled ? 'spoiled' : urgencyTier(winH)}`;
     win.textContent = a.spoiled
       ? t(state.lang, a.cause === 'danger-zone' ? 'spoiledDanger' : 'spoiledAge')
-      : t(state.lang, 'spoilsIn', { t: formatWindow(ambientWindowHours(lot, a, state.params.ambientC)), c: state.params.ambientC });
+      : t(state.lang, 'spoilsIn', { t: formatWindow(winH), c: state.params.ambientC });
     lifeCell.append(win, bar, cap);
 
     const dCell = document.createElement('div');
