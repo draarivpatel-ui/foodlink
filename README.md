@@ -59,4 +59,4 @@ FoodLink is a planning and teaching tool. Temperatures, times, distances and con
 
 ## Attribution
 
-Built with Devin (SWE-2) assistance inside T3 Code for implementation, tests and documentation, directed and reviewed by Aariv Patel. Reference factors: FDA Food Code cold/hot holding and the 4-hour TCS rule; EPA WARM v15 "Modeling Food Donation Benefits in WARM" (2019), Table 1 low-end estimate; USDA MyPlate-style food groups.
+Built by Aariv Patel with AI coding assistants inside T3 Code: Devin (SWE-2) and Claude helped with implementation, tests and documentation under his direction. The same disclosure appears in the app's How it works drawer. Reference factors: FDA Food Code cold/hot holding and the 4-hour TCS rule; EPA WARM v15 "Modeling Food Donation Benefits in WARM" (2019), Table 1 low-end estimate; USDA MyPlate-style food groups.
