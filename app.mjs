@@ -14,9 +14,13 @@ import {
   SCENARIOS, getScenario, clone, validateScenario, encodeState, decodeState,
   scenarioToCSV, scenarioFromCSV, exportStateJSON, allLots,
 } from './src/scenarios.mjs';
-import { t, manifestLines, checklist } from './src/i18n.mjs';
+import { t, manifestLines, checklist, explainer } from './src/i18n.mjs';
 import { runSelfTests } from './src/selftest.mjs';
 import { ambientWindowHours, formatWindow, servingsDelivered, coldChainMargins } from './src/impact.mjs';
+import {
+  buildRuns, claimRun, requestHandoff, takeOverRun, releaseRun, normalizeClaims,
+  reconcileClaims, runStatus, boardSummary, householdReach, briefLines, briefJSON,
+} from './src/shifts.mjs';
 
 const $ = (id) => document.getElementById(id);
 const SVGNS = 'http://www.w3.org/2000/svg';
@@ -37,6 +41,10 @@ const state = {
   plan: null,
   allocation: null,
   assessments: new Map(),
+  claims: {},
+  runs: [],
+  drafts: {},
+  runErrors: {},
 };
 
 // ---------- state init / hash ----------
@@ -64,6 +72,7 @@ function loadFromHash() {
     if (st.ui.lang === 'es' || st.ui.lang === 'en') state.lang = st.ui.lang;
     if (st.ui.theme === 'dark' || st.ui.theme === 'light') state.theme = st.ui.theme;
   }
+  if (st.claims) state.claims = normalizeClaims(st.claims);
   if (st.scenario) {
     const v = validateScenario(st.scenario);
     if (v.ok) applyScenario(st.scenario, null);
@@ -86,6 +95,7 @@ function syncHash() {
   const payload = { params: state.params, ui: { lang: state.lang, theme: state.theme } };
   if (state.dirty) payload.scenario = state.scenario;
   else payload.scenarioId = state.scenarioId;
+  if (Object.keys(state.claims).length) payload.claims = state.claims;
   history.replaceState(null, '', `#s=${encodeState(payload)}`);
   const share = $('share-url');
   if (share) share.value = location.href;
@@ -116,6 +126,10 @@ function recompute() {
   const deliveredLots = [...deliveredIds].map((id) => lotById.get(id)).filter(Boolean);
   state.allocation = allocateBoxes(deliveredLots, state.scenario.households);
   state.deliveredIds = deliveredIds;
+  state.runs = buildRuns(state.plan, scenario, {
+    ambientC: params.ambientC, elapsedMin: params.elapsedMin,
+    budgetMin: params.coldChainMaxMin, assessments: state.assessments,
+  });
 }
 
 // ---------- i18n ----------
@@ -126,6 +140,8 @@ function applyLang() {
     el.textContent = t(state.lang, el.dataset.i18n);
   }
   $('selftest-close').setAttribute('aria-label', t(state.lang, 'closeLabel'));
+  $('how-close').setAttribute('aria-label', t(state.lang, 'closeLabel'));
+  renderExplainer();
   renderScenarioButtons();
   recompute();
   renderAll();
@@ -597,6 +613,246 @@ function renderBoxes() {
     : '';
 }
 
+// ---------- volunteer board ----------
+
+const STATUS_CLASS = { open: 'st-open', claimed: 'st-claimed', handoff: 'st-handoff' };
+
+function boardState() {
+  const { active, orphaned } = reconcileClaims(state.claims, state.runs);
+  return { active, orphaned, sum: boardSummary(state.runs, active), reach: householdReach(state.allocation) };
+}
+
+// One segment per run, as wide as the run's share of the shift, colored by
+// its status. Drawn twice: small on the dispatch card, large on the board.
+function renderRelay(el, active) {
+  el.textContent = '';
+  const runs = state.runs;
+  if (!runs.length) return;
+  const t0 = runs[0].startMin;
+  const span = Math.max(1, runs[runs.length - 1].endMin - t0);
+  for (const r of runs) {
+    const seg = document.createElement('span');
+    seg.className = `relay-seg ${STATUS_CLASS[runStatus(active, r.id)]}`;
+    seg.style.flexGrow = String(Math.max(0.12, (r.endMin - r.startMin) / span));
+    seg.textContent = String(r.n);
+    el.appendChild(seg);
+  }
+}
+
+function renderCoverage() {
+  const { active, sum } = boardState();
+  $('coverage-text').textContent = sum.runs
+    ? t(state.lang, 'coverageInline', { covered: sum.covered, total: sum.runs })
+    : t(state.lang, 'emptyManifest');
+  $('coverage-open').hidden = !sum.runs;
+  renderRelay($('coverage-relay'), active);
+  $('tab-board-count').textContent = sum.runs ? `${sum.covered}/${sum.runs}` : '';
+  $('tab-board-count').classList.toggle('done', sum.runs > 0 && sum.covered === sum.runs);
+}
+
+function stopToken(s) {
+  const tok = document.createElement('span');
+  tok.className = `stop-tok kind-${s.kind}`;
+  const n = document.createElement('span');
+  n.className = 'stop-tok-n';
+  n.textContent = String(s.stopNo);
+  tok.append(n, document.createTextNode(s.name));
+  return tok;
+}
+
+function runErrorText(code) {
+  if (code === 'name-required') return t(state.lang, 'errNameRequired');
+  if (code === 'already-claimed') return t(state.lang, 'errAlreadyClaimed');
+  return t(state.lang, 'errGeneric');
+}
+
+function applyClaim(op, runId, name) {
+  const fn = { claim: claimRun, handoff: requestHandoff, take: takeOverRun, release: releaseRun }[op];
+  const res = op === 'handoff' || op === 'release' ? fn(state.claims, state.runs, runId) : fn(state.claims, state.runs, runId, name);
+  if (res.ok) {
+    state.claims = res.claims;
+    delete state.runErrors[runId];
+    delete state.drafts[runId];
+  } else {
+    state.runErrors[runId] = runErrorText(res.error);
+  }
+  renderCoverage();
+  renderBoard();
+  syncHash();
+  const again = document.querySelector(`[data-run="${CSS.escape(runId)}"] ${res.ok ? 'button' : 'input'}`);
+  again?.focus();
+}
+
+function nameForm(r, op, label) {
+  const form = document.createElement('form');
+  form.className = 'claim-form';
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.maxLength = 32;
+  input.autocomplete = 'off';
+  input.placeholder = t(state.lang, 'namePlaceholder');
+  input.setAttribute('aria-label', t(state.lang, 'nameLabel', { n: r.n }));
+  input.value = state.drafts[r.id] || '';
+  input.addEventListener('input', () => { state.drafts[r.id] = input.value; });
+  const btn = document.createElement('button');
+  btn.type = 'submit';
+  btn.className = 'btn solid';
+  btn.textContent = label;
+  form.append(input, btn);
+  form.addEventListener('submit', (e) => { e.preventDefault(); applyClaim(op, r.id, input.value); });
+  return form;
+}
+
+function actionBtn(text, op, runId, cls = 'btn') {
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.className = cls;
+  b.textContent = text;
+  b.addEventListener('click', () => applyClaim(op, runId));
+  return b;
+}
+
+function renderBoard() {
+  const L = (k, p) => t(state.lang, k, p);
+  const { active, orphaned, sum, reach } = boardState();
+  $('fig-cover').textContent = `${sum.covered}/${sum.runs}`;
+  $('fig-kg').textContent = `${sum.coveredKg} / ${sum.totalKg} kg`;
+  $('fig-households').textContent = String(reach.households);
+  $('fig-people').textContent = String(reach.people);
+  renderRelay($('board-relay'), active);
+
+  const on = $('orphan-note');
+  on.hidden = orphaned.length === 0;
+  $('orphan-text').textContent = orphaned.length
+    ? L('orphanNote', { n: orphaned.length, names: orphaned.map((o) => o.by).join(', ') })
+    : '';
+
+  const list = $('run-list');
+  list.textContent = '';
+  if (!state.runs.length) {
+    const li = document.createElement('li');
+    li.className = 'run run-empty';
+    li.textContent = L('emptyManifest');
+    list.appendChild(li);
+  }
+  for (const r of state.runs) {
+    const st = runStatus(active, r.id);
+    const c = active[r.id];
+    const li = document.createElement('li');
+    li.className = `run ${STATUS_CLASS[st]}`;
+    li.dataset.run = r.id;
+
+    const head = document.createElement('div');
+    head.className = 'run-head';
+    const h = document.createElement('h3');
+    h.textContent = L('runTitle', { n: r.n });
+    const win = document.createElement('span');
+    win.className = 'run-window';
+    win.textContent = r.window;
+    const status = document.createElement('span');
+    status.className = 'run-status';
+    status.textContent = st === 'open' ? L('runOpen')
+      : st === 'handoff' ? L('runHandoff', { name: c.by })
+        : c.from ? L('runRelay', { name: c.by, from: c.from }) : L('runClaimed', { name: c.by });
+    head.append(h, win, status);
+
+    const route = document.createElement('div');
+    route.className = 'run-route';
+    route.setAttribute('aria-label', L('runStops'));
+    r.stops.forEach((s, i) => {
+      if (i) {
+        const arrow = document.createElement('span');
+        arrow.className = 'run-arrow';
+        arrow.setAttribute('aria-hidden', 'true');
+        route.appendChild(arrow);
+      }
+      route.appendChild(stopToken(s));
+    });
+
+    const facts = document.createElement('div');
+    facts.className = 'run-facts';
+    const fact = (text, cls = '') => {
+      const f = document.createElement('span');
+      f.className = `run-fact ${cls}`;
+      f.textContent = text;
+      facts.appendChild(f);
+    };
+    fact(`${r.deliveredKg} kg`);
+    fact(`${r.servings} ${L('servingsUnit')}`);
+    if (r.soonestSpoilH != null) fact(L('runSpoils', { t: formatWindow(r.soonestSpoilH) }), `tier-text-${r.urgency}`);
+    if (r.tightestMarginMin != null) fact(L('runMargin', { m: Math.round(r.tightestMarginMin) }));
+    if (!r.endsAtPantry) fact(L('runNoPantry'), 'tier-text-critical');
+
+    const act = document.createElement('div');
+    act.className = 'run-act';
+    if (st === 'open') act.appendChild(nameForm(r, 'claim', L('claimButton')));
+    else if (st === 'claimed') {
+      act.append(actionBtn(L('handoffButton'), 'handoff', r.id), actionBtn(L('releaseButton'), 'release', r.id, 'btn ghost'));
+    } else {
+      act.append(nameForm(r, 'take', L('takeOverButton')), actionBtn(L('releaseButton'), 'release', r.id, 'btn ghost'));
+    }
+    const err = document.createElement('p');
+    err.className = 'run-err';
+    err.setAttribute('role', 'status');
+    err.textContent = state.runErrors[r.id] || '';
+    act.appendChild(err);
+
+    li.append(head, route, facts, act);
+    list.appendChild(li);
+  }
+
+  $('brief-pre').textContent = currentBrief(active, reach).join('\n');
+}
+
+function currentBrief(active, reach) {
+  return briefLines(state.runs, active, { scenarioName: state.scenario.name, reach }, state.lang);
+}
+
+function flashBrief(msg) {
+  const el = $('brief-status');
+  el.textContent = msg;
+  setTimeout(() => { if (el.textContent === msg) el.textContent = ''; }, 2200);
+}
+
+// ---------- how it works drawer ----------
+
+function renderExplainer() {
+  const body = $('how-body');
+  body.textContent = '';
+  for (const sec of explainer(state.lang)) {
+    const section = document.createElement('section');
+    const h = document.createElement('h3');
+    h.textContent = sec.h;
+    section.appendChild(h);
+    for (const para of sec.p || []) {
+      const p = document.createElement('p');
+      p.textContent = para;
+      section.appendChild(p);
+    }
+    if (sec.rows) {
+      const dl = document.createElement('dl');
+      for (const row of sec.rows) {
+        const dt = document.createElement('dt');
+        dt.textContent = row.term;
+        const dd = document.createElement('dd');
+        dd.textContent = row.text;
+        dl.append(dt, dd);
+      }
+      section.appendChild(dl);
+    }
+    body.appendChild(section);
+  }
+  const shelf = document.createElement('section');
+  const sh = document.createElement('h3');
+  sh.textContent = t(state.lang, 'tabShelf');
+  const sp = document.createElement('p');
+  sp.textContent = t(state.lang, 'shelfNote');
+  const sp2 = document.createElement('p');
+  sp2.textContent = t(state.lang, 'shareNote');
+  shelf.append(sh, sp, sp2);
+  body.appendChild(shelf);
+}
+
 function renderManifest() {
   $('manifest-pre').textContent = manifestLines(state.plan, state.scenario, state.lang).join('\n');
   const ol = $('checklist');
@@ -611,6 +867,8 @@ function renderManifest() {
 function renderAll() {
   renderMap();
   renderStats();
+  renderCoverage();
+  renderBoard();
   renderStops();
   renderShelf();
   renderBoxes();
@@ -633,7 +891,7 @@ function renderScenarioButtons() {
     b.addEventListener('click', () => {
       if (s.id === state.scenarioId) return;
       const next = SCENARIOS.find((x) => x.id === s.id);
-      if (next) applyScenario(getScenario(s.id), s.id);
+      if (next) { clearBoard(); applyScenario(getScenario(s.id), s.id); }
       recompute();
       renderAll();
       syncHash();
@@ -642,6 +900,14 @@ function renderScenarioButtons() {
     wrap.appendChild(b);
   }
   $('scenario-blurb').textContent = state.scenario.blurb || '';
+}
+
+// Claims name stops of one scenario, so a different scenario starts with an
+// empty board instead of a wall of orphaned claims.
+function clearBoard() {
+  state.claims = {};
+  state.drafts = {};
+  state.runErrors = {};
 }
 
 function syncControls() {
@@ -679,16 +945,54 @@ function wireControls() {
   bind('in-chain', 'coldChainMaxMin');
 
   for (const tab of document.querySelectorAll('.tab')) {
-    tab.addEventListener('click', () => {
-      document.querySelectorAll('.tab').forEach((x) => {
-        x.classList.toggle('active', x === tab);
-        x.setAttribute('aria-selected', x === tab ? 'true' : 'false');
-      });
-      document.querySelectorAll('.panel').forEach((p) => {
-        p.classList.toggle('active', p.id === `panel-${tab.dataset.tab}`);
-      });
-    });
+    tab.addEventListener('click', () => selectTab(tab.dataset.tab));
   }
+  $('coverage-open').addEventListener('click', () => {
+    selectTab('board');
+    $('tab-btn-board').scrollIntoView({ block: 'start' });
+    document.querySelector('#run-list input, #run-list button')?.focus({ preventScroll: true });
+  });
+
+  // Volunteer board actions.
+  $('brief-copy').addEventListener('click', async () => {
+    const text = $('brief-pre').textContent;
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      const r = document.createRange();
+      r.selectNodeContents($('brief-pre'));
+      const sel = getSelection();
+      sel.removeAllRanges();
+      sel.addRange(r);
+      document.execCommand('copy');
+    }
+    flashBrief(t(state.lang, 'briefCopied'));
+  });
+  $('brief-json').addEventListener('click', () => {
+    const { active, reach } = boardState();
+    const payload = briefJSON(state.runs, active, { scenarioName: state.scenario.name, reach });
+    download('foodlink-volunteer-brief.json', JSON.stringify(payload, null, 2), 'application/json');
+  });
+  $('brief-print').addEventListener('click', () => {
+    document.body.classList.add('print-brief');
+    window.print();
+  });
+  window.addEventListener('afterprint', () => document.body.classList.remove('print-brief'));
+  $('orphan-clear').addEventListener('click', () => {
+    state.claims = reconcileClaims(state.claims, state.runs).active;
+    renderCoverage();
+    renderBoard();
+    syncHash();
+  });
+
+  // How it works drawer.
+  const drawer = $('how-drawer');
+  $('how-btn').addEventListener('click', () => {
+    if (typeof drawer.showModal === 'function') drawer.showModal();
+    else drawer.setAttribute('open', '');
+  });
+  $('how-close').addEventListener('click', () => drawer.close());
+  drawer.addEventListener('click', (e) => { if (e.target === drawer) drawer.close(); });
 
   $('lang-btn').addEventListener('click', () => {
     state.lang = state.lang === 'en' ? 'es' : 'en';
@@ -702,7 +1006,10 @@ function wireControls() {
     syncHash();
   });
 
-  $('print-btn').addEventListener('click', () => window.print());
+  $('print-btn').addEventListener('click', () => {
+    document.body.classList.remove('print-brief');
+    window.print();
+  });
 
   $('selftest-btn').addEventListener('click', () => {
     const { passed, failed, results } = runSelfTests();
@@ -784,6 +1091,7 @@ function wireControls() {
       else msg.textContent = res.errors.slice(0, 3).join('; ') || 'invalid CSV';
     }
     if (applied) {
+      clearBoard();
       msg.textContent = '';
       recompute();
       renderAll();
@@ -843,6 +1151,17 @@ function wireControls() {
   });
   // Refresh the donor select whenever a new scenario is applied.
   state._refreshDonors = refreshDonors;
+}
+
+function selectTab(name) {
+  document.querySelectorAll('.tab').forEach((x) => {
+    const on = x.dataset.tab === name;
+    x.classList.toggle('active', on);
+    x.setAttribute('aria-selected', on ? 'true' : 'false');
+  });
+  document.querySelectorAll('.panel').forEach((p) => {
+    p.classList.toggle('active', p.id === `panel-${name}`);
+  });
 }
 
 function download(name, text, mime) {

@@ -11,6 +11,7 @@
 <body>
 <header class="topbar">
   <h1 data-i18n="appTitle">FoodLink</h1>
+  <button id="how-btn" class="btn how-btn" aria-haspopup="dialog" aria-controls="how-drawer"><svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true"><circle cx="8" cy="8" r="6.6" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M8 7.2v4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><circle cx="8" cy="4.9" r="1" fill="currentColor"/></svg><span data-i18n="howButton">How it works</span></button>
   <p class="sim-badge" id="sim-badge"><span class="sim-dot" aria-hidden="true"></span><span data-i18n="simBadge">Offline simulation, deterministic, no network calls</span></p>
   <div class="top-actions">
     <button id="selftest-btn" class="btn ghost" data-i18n="selfTestButton">Run self-tests</button>
@@ -53,6 +54,7 @@
 
 <nav class="tabs" role="tablist" aria-label="Workbench views">
   <button class="tab active" role="tab" aria-selected="true" data-tab="dispatch" id="tab-btn-dispatch" data-i18n="tabDispatch">Dispatch map</button>
+  <button class="tab" role="tab" aria-selected="false" data-tab="board" id="tab-btn-board"><span data-i18n="tabBoard">Volunteer board</span><span class="tab-count" id="tab-board-count" aria-hidden="true"></span></button>
   <button class="tab" role="tab" aria-selected="false" data-tab="shelf" id="tab-btn-shelf" data-i18n="tabShelf">Shelf-life triage</button>
   <button class="tab" role="tab" aria-selected="false" data-tab="boxes" id="tab-btn-boxes" data-i18n="tabBoxes">Household boxes</button>
   <button class="tab" role="tab" aria-selected="false" data-tab="manifest" id="tab-btn-manifest" data-i18n="tabManifest">Manifest &amp; checklist</button>
@@ -73,20 +75,52 @@
             <div class="stat hero"><span class="stat-num" id="stat-kg">0</span><span class="stat-cap" id="stat-kg-cap" data-i18n="rescuedLabel">Food rescued</span></div>
             <div class="stat half"><span class="stat-num" id="stat-servings">0</span><span class="stat-cap" data-i18n="servingsLabel">Servings delivered</span></div>
             <div class="stat half"><span class="stat-num" id="stat-spoiled">0</span><span class="stat-cap" data-i18n="spoiledLabel">Lost to spoilage</span></div>
-            <div class="stat wide"><span class="stat-num" id="stat-co2">0</span><span class="stat-cap" data-i18n="co2Label">Landfill emissions avoided</span><span class="stat-sub" data-i18n="co2Sub">EPA WARM v15 donation guidance, low-end: 0.54 t CO2e per short ton (0.595 kg per kg)</span></div>
+            <div class="stat wide"><span class="stat-num" id="stat-co2">0</span><span class="stat-cap" data-i18n="co2Label">Landfill emissions avoided</span></div>
             <div class="stat wide margin" id="stat-margin-cell"><span class="stat-num" id="stat-margin">-</span><span class="stat-cap" data-i18n="marginLabel">Tightest cold-chain margin</span><span class="meter" aria-hidden="true"><span class="meter-fill" id="stat-margin-meter"></span></span><span class="stat-sub" id="stat-margin-sub"></span></div>
             <div class="stat third"><span class="stat-num" id="stat-km">0</span><span class="stat-cap" data-i18n="routeKm">Route distance</span></div>
             <div class="stat third"><span class="stat-num" id="stat-min">0</span><span class="stat-cap" data-i18n="routeTime">Route time</span></div>
             <div class="stat third"><span class="stat-num" id="stat-method">-</span><span class="stat-cap" data-i18n="routeMethod">Solver</span></div>
           </div>
         </div>
+        <div class="coverage" id="coverage">
+          <div class="coverage-row">
+            <span class="coverage-text" id="coverage-text"></span>
+            <button class="btn solid" id="coverage-open" data-i18n="openBoard">Open volunteer board</button>
+          </div>
+          <div class="relay" id="coverage-relay" aria-hidden="true"></div>
+        </div>
         <ol class="stop-list" id="stop-list"></ol>
       </aside>
     </div>
   </section>
 
+  <section id="panel-board" class="panel" role="tabpanel" aria-labelledby="tab-btn-board">
+    <div class="board-head">
+      <h2 data-i18n="boardTitle">Volunteer board</h2>
+      <div class="board-actions">
+        <button class="btn" id="brief-copy" data-i18n="copyBrief">Copy brief</button>
+        <button class="btn" id="brief-json" data-i18n="downloadBriefJson">Download JSON</button>
+        <button class="btn solid" id="brief-print" data-i18n="printBrief">Print brief</button>
+      </div>
+    </div>
+    <div class="board-figures" id="board-figures">
+      <div class="fig fig-cover"><span class="fig-num" id="fig-cover">0/0</span><span class="fig-cap" data-i18n="coverageLabel">Runs with a driver</span><div class="relay relay-lg" id="board-relay" aria-hidden="true"></div></div>
+      <div class="fig"><span class="fig-num" id="fig-kg">0 kg</span><span class="fig-cap" data-i18n="coveredKgLabel">Food with a driver</span></div>
+      <div class="fig"><span class="fig-num" id="fig-households">0</span><span class="fig-cap" data-i18n="householdsLabel">Households with a box</span></div>
+      <div class="fig"><span class="fig-num" id="fig-people">0</span><span class="fig-cap" data-i18n="peopleLabel">Neighbors reached</span></div>
+    </div>
+    <div class="orphan-note" id="orphan-note" role="status" hidden><span id="orphan-text"></span><button class="btn ghost" id="orphan-clear" data-i18n="clearOrphans">Clear</button></div>
+    <div class="board-grid">
+      <ol class="run-list" id="run-list"></ol>
+      <aside class="brief-card" aria-labelledby="brief-title">
+        <h3 id="brief-title" data-i18n="briefTitle">Neighborhood volunteer brief</h3>
+        <pre id="brief-pre"></pre>
+        <p class="brief-status" id="brief-status" role="status"></p>
+      </aside>
+    </div>
+  </section>
+
   <section id="panel-shelf" class="panel" role="tabpanel" aria-labelledby="tab-btn-shelf">
-    <p class="panel-note" data-i18n="shelfNote">Life remaining at current ambient temperature</p>
     <div class="lot-rows" id="lot-rows"></div>
   </section>
 
@@ -117,7 +151,6 @@
           <button class="btn danger" id="reset-btn" data-i18n="resetButton">Reset scenario</button>
         </div>
         <input id="share-url" class="share-url" readonly aria-label="Shareable URL">
-        <p class="note" data-i18n="shareNote">The whole workbench state rides in the URL hash. No server sees it.</p>
         <label class="import-label" for="import-text" data-i18n="importLabel">Import JSON or CSV</label>
         <textarea id="import-text" rows="8" spellcheck="false"></textarea>
         <button class="btn solid" id="import-btn" data-i18n="importButton">Import</button>
@@ -151,6 +184,14 @@
     <ul id="selftest-list"></ul>
   </div>
 </div>
+
+<dialog id="how-drawer" class="drawer" aria-labelledby="how-title">
+  <div class="drawer-head">
+    <h2 id="how-title" data-i18n="howTitle">How FoodLink works</h2>
+    <button class="btn ghost icon-btn" id="how-close" aria-label="Close"><svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M3.5 3.5l9 9M12.5 3.5l-9 9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" fill="none"/></svg></button>
+  </div>
+  <div class="drawer-body" id="how-body"></div>
+</dialog>
 
 <footer>
   <p data-i18n="fictionNote">All places, lots and households are fictional teaching examples.</p>

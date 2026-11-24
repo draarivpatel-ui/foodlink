@@ -19,6 +19,7 @@ import {
   encodeState, decodeState, exportStateJSON, allLots,
 } from './scenarios.mjs';
 import { STRINGS, keyParity, manifestLines, checklist, t } from './i18n.mjs';
+import { buildRuns, claimRun, requestHandoff, takeOverRun, normalizeClaims } from './shifts.mjs';
 
 const checks = [];
 function check(name, fn) { checks.push({ name, fn }); }
@@ -200,6 +201,29 @@ check('route simulation returns a visit for every planned stop', () => {
   const s = SCENARIOS[1];
   const plan = planRoute(s, {});
   return { ok: plan.visits.length === plan.order.length, detail: `${plan.visits.length} visits` };
+});
+
+check('volunteer runs split every route into pantry-ended runs', () => {
+  for (const s of SCENARIOS) {
+    const plan = planRoute(s, {});
+    const runs = buildRuns(plan, s, {});
+    const stops = runs.flatMap((r) => r.stops.map((x) => x.stopNo));
+    if (stops.length !== plan.visits.length) return { ok: false, detail: `${s.id}: ${stops.length} of ${plan.visits.length}` };
+    if (runs.slice(0, -1).some((r) => !r.endsAtPantry)) return { ok: false, detail: `${s.id}: open-ended middle run` };
+  }
+  return { ok: true, detail: '4 scenarios partitioned' };
+});
+
+check('claim, hand-off and take-over survive the share link', () => {
+  const s = SCENARIOS[0];
+  const runs = buildRuns(planRoute(s, {}), s, {});
+  const id = runs[0].id;
+  let c = claimRun({}, runs, id, 'Maya').claims;
+  c = requestHandoff(c, runs, id).claims;
+  c = takeOverRun(c, runs, id, 'Jordan').claims;
+  const back = normalizeClaims(decodeState(encodeState({ scenarioId: s.id, claims: c })).state.claims);
+  const ok = back[id]?.by === 'Jordan' && back[id]?.from === 'Maya';
+  return { ok, detail: ok ? 'Jordan took over from Maya' : JSON.stringify(back) };
 });
 
 export function runSelfTests() {

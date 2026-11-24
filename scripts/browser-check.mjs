@@ -85,7 +85,7 @@ try {
     };
 
     // Tabs.
-    for (const tab of ['shelf', 'boxes', 'manifest', 'data', 'dispatch']) {
+    for (const tab of ['board', 'shelf', 'boxes', 'manifest', 'data', 'dispatch']) {
       await step(`tab "${tab}" activates`, async () => {
         await page.click(`[data-tab="${tab}"]`);
         await page.waitForSelector(`#panel-${tab}.active`, { timeout: 4000 });
@@ -157,6 +157,66 @@ try {
     const theme = await page.getAttribute('html', 'data-theme');
     check(`${vp.name}: dark theme applies`, theme === 'dark', `data-theme=${theme}`);
     await page.click('#theme-btn');
+
+    // Volunteer board: open it from the dispatch card, claim with real typing,
+    // ask for a hand-off, take it over, then reload and expect the same board.
+    await step('coverage button opens the volunteer board', async () => {
+      await page.click('[data-tab="dispatch"]');
+      await page.click('#coverage-open');
+      await page.waitForSelector('#panel-board.active', { timeout: 4000 });
+    });
+    await step('empty name is refused with a message', async () => {
+      await page.locator('#run-list .claim-form button').first().click();
+      const msg = await page.locator('#run-list .run-err').first().innerText();
+      if (!/first name/i.test(msg)) throw new Error(`message "${msg}"`);
+    });
+    await step('claim, hand-off and take-over update the board', async () => {
+      await page.locator('#run-list .claim-form input').first().click();
+      await page.keyboard.type('Maya');
+      await page.keyboard.press('Enter');
+      await page.locator('#run-list li').first().getByRole('button', { name: /hand-off/i }).click();
+      await page.locator('#run-list li').first().locator('input').click();
+      await page.keyboard.type('Jordan');
+      await page.keyboard.press('Enter');
+      const st = await page.locator('#run-list .run-status').first().innerText();
+      if (st !== 'Jordan took over from Maya') throw new Error(st);
+      const brief = await page.textContent('#brief-pre');
+      if (!brief.includes('driver Jordan (took over from Maya)')) throw new Error('brief missing relay');
+    });
+    await step('claims survive a reload from the share link', async () => {
+      const url = page.url();
+      await page.goto('about:blank');
+      await page.goto(url, { waitUntil: 'load' });
+      await page.click('[data-tab="board"]');
+      const st = await page.locator('#run-list .run-status').first().innerText();
+      if (st !== 'Jordan took over from Maya') throw new Error(st);
+    });
+    await step('a replan that drops the run reports the orphaned claim', async () => {
+      await page.locator('#in-capacity').evaluate((n) => { n.value = '80'; n.dispatchEvent(new Event('input', { bubbles: true })); });
+      if (await page.locator('#orphan-note').isHidden()) throw new Error('orphan note hidden');
+      await page.locator('#in-capacity').evaluate((n) => { n.value = '320'; n.dispatchEvent(new Event('input', { bubbles: true })); });
+      if (!(await page.locator('#orphan-note').isHidden())) throw new Error('orphan note stuck after restore');
+    });
+    await step('brief downloads as JSON', async () => {
+      const [d] = await Promise.all([page.waitForEvent('download', { timeout: 4000 }), page.click('#brief-json')]);
+      if (d.suggestedFilename() !== 'foodlink-volunteer-brief.json') throw new Error(d.suggestedFilename());
+      await d.delete().catch(() => {});
+    });
+    await step('how it works drawer opens and closes', async () => {
+      await page.click('#how-btn');
+      await page.waitForSelector('#how-drawer[open]', { timeout: 4000 });
+      const n = await page.locator('#how-body section').count();
+      if (n < 5) throw new Error(`${n} sections`);
+      await page.click('#how-close');
+      await page.waitForSelector('#how-drawer:not([open])', { state: 'attached', timeout: 4000 });
+    });
+    await step('no em or en dash in any rendered text', async () => {
+      for (const tab of ['dispatch', 'board', 'shelf', 'boxes', 'manifest', 'data']) {
+        await page.click(`[data-tab="${tab}"]`);
+        const txt = await page.evaluate(() => document.body.innerText + document.getElementById('how-body').textContent);
+        if (/[\u2013\u2014]/.test(txt)) throw new Error(`dash on ${tab}`);
+      }
+    });
 
     // Self-tests: open panel, everything passes.
     await page.click('#selftest-btn');

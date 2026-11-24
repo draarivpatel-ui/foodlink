@@ -10,10 +10,12 @@ Food rescue teams juggle three clocks at once: produce wilting at ambient temper
 
 - **Cold-chain triage.** Every lot gets a live remaining-life countdown from a Q10 / Arrhenius thermal decay model anchored on the FDA Food Code (41 F / 5 C cold holding, 135 F / 57 C hot holding, cumulative 4-hour danger-zone rule for TCS foods). Warm the ambient slider and watch urgency tiers flip. Each lot shows life left in hours at 5 C and a "spoils in" window: the real time it has left if it keeps sitting at the current ambient temperature, capped by the 4-hour danger-zone clock for TCS foods.
 - **Dispatch routing.** An exact solver (exhaustive search up to 8 stops) and a nearest-neighbor + feasibility-aware 2-opt optimizer beyond it. Respects vehicle capacity in kg, donor and pantry time windows, service minutes, and a per-lot cold-chain transit budget. Reports route km, route minutes, rescued kg, servings delivered (summed from lot labels), spoiled kg, the tightest cold-chain margin (budget minus pantry-arrival-minus-pickup minutes for every delivered TCS lot), and landfill emissions avoided at the EPA WARM v15 food-donation low-end factor (0.54 MTCO2E per short ton, about 0.595 kg CO2e per kg delivered; avoided landfilling only, no upstream production credit).
+- **Volunteer board.** The planned route splits into short runs that each end at a pantry, so the van can change hands there. Neighbors claim a run by first name, ask for a hand-off, or take one over. A relay strip shows which runs still need a driver, and the board counts food with a driver, households that get a box and the people in them. Claims ride in the share link (sanitized on the way in), stay put when a replan keeps the same stops, and are reported, not silently dropped, when a replan changes them. A plain-text neighborhood brief copies to a group chat, downloads as JSON, or prints on its own.
+- **How it works drawer.** One button opens a drawer that explains the three engines, the FDA and EPA numbers behind them, what building it taught, and how AI assistance was used.
 - **Household box allocation.** A greedy balanced allocator fills pantry boxes against per-person food-group targets (produce, protein, grain, dairy) while enforcing gluten-free, nut-free, dairy-free, halal, vegetarian and diabetic (low sugar, lower sodium) constraints. Every box shows its group balance and nutrient totals.
 - **Four civic scenarios.** Saturday Farmers Market Rescue, School Cafeteria Surplus Share, Storm Power-Outage Cold-Chain Triage, and Thanksgiving Pantry Surge. All places are fictional. A lot editor plus JSON/CSV import and a URL-hash share format make any custom scenario portable.
 - **Bilingual.** English / Espanol toggle for the whole interface, plus a printable dispatch manifest and a donation safety checklist grounded in the Bill Emerson Good Samaritan Food Donation Act.
-- **Self-verifying.** The "Run self-tests" button executes the real engines in your browser and reports pass/fail on 24 invariants.
+- **Self-verifying.** The "Run self-tests" button executes the real engines in your browser and reports pass/fail on 31 invariants.
 
 ## Quick start
 
@@ -42,6 +44,7 @@ src/spoilage.mjs    Q10 / Arrhenius shelf-life + FDA danger-zone engine
 src/nutrition.mjs   food-group box allocator + dietary constraints
 src/routing.mjs     exact + NN/2-opt dispatch planner + EPA WARM CO2e
 src/impact.mjs      spoils-in window, servings delivered, cold-chain margins
+src/shifts.mjs      volunteer runs, claims and hand-offs, neighborhood brief
 src/scenarios.mjs   4 scenarios + validators + CSV/JSON/hash codecs
 src/i18n.mjs        EN/ES strings, manifest text, safety checklist
 src/selftest.mjs    shared invariant suite (browser + Node)
