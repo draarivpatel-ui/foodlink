@@ -8,8 +8,8 @@ Food rescue teams juggle three clocks at once: produce wilting at ambient temper
 
 ## What it does
 
-- **Cold-chain triage.** Every lot gets a live remaining-life countdown from a Q10 / Arrhenius thermal decay model anchored on the FDA Food Code (41 F / 5 C cold holding, 135 F / 57 C hot holding, cumulative 4-hour danger-zone rule for TCS foods). Warm the ambient slider and watch urgency tiers flip.
-- **Dispatch routing.** An exact solver (exhaustive search up to 8 stops) and a nearest-neighbor + feasibility-aware 2-opt optimizer beyond it. Respects vehicle capacity in kg, donor and pantry time windows, service minutes, and a per-lot cold-chain transit budget. Reports route km, route minutes, rescued kg, spoiled kg, and landfill emissions avoided at the EPA WARM v15 food-donation low-end factor (0.54 MTCO2E per short ton, about 0.595 kg CO2e per kg delivered; avoided landfilling only, no upstream production credit).
+- **Cold-chain triage.** Every lot gets a live remaining-life countdown from a Q10 / Arrhenius thermal decay model anchored on the FDA Food Code (41 F / 5 C cold holding, 135 F / 57 C hot holding, cumulative 4-hour danger-zone rule for TCS foods). Warm the ambient slider and watch urgency tiers flip. Each lot shows life left in hours at 5 C and a "spoils in" window: the real time it has left if it keeps sitting at the current ambient temperature, capped by the 4-hour danger-zone clock for TCS foods.
+- **Dispatch routing.** An exact solver (exhaustive search up to 8 stops) and a nearest-neighbor + feasibility-aware 2-opt optimizer beyond it. Respects vehicle capacity in kg, donor and pantry time windows, service minutes, and a per-lot cold-chain transit budget. Reports route km, route minutes, rescued kg, servings delivered (summed from lot labels), spoiled kg, the tightest cold-chain margin (budget minus pantry-arrival-minus-pickup minutes for every delivered TCS lot), and landfill emissions avoided at the EPA WARM v15 food-donation low-end factor (0.54 MTCO2E per short ton, about 0.595 kg CO2e per kg delivered; avoided landfilling only, no upstream production credit).
 - **Household box allocation.** A greedy balanced allocator fills pantry boxes against per-person food-group targets (produce, protein, grain, dairy) while enforcing gluten-free, nut-free, dairy-free, halal, vegetarian and diabetic (low sugar, lower sodium) constraints. Every box shows its group balance and nutrient totals.
 - **Four civic scenarios.** Saturday Farmers Market Rescue, School Cafeteria Surplus Share, Storm Power-Outage Cold-Chain Triage, and Thanksgiving Pantry Surge. All places are fictional. A lot editor plus JSON/CSV import and a URL-hash share format make any custom scenario portable.
 - **Bilingual.** English / Espanol toggle for the whole interface, plus a printable dispatch manifest and a donation safety checklist grounded in the Bill Emerson Good Samaritan Food Donation Act.
@@ -30,7 +30,7 @@ Or deploy the folder as-is to any static host. There is no build step.
 npm test        # node --test tests/    (no dependencies installed)
 ```
 
-The suite covers Q10 monotonicity across every product class, FDA 41 F danger-zone boundaries, the 4-hour TCS discard rule, route feasibility, capacity and cold-chain compliance on all four scenarios, the 2-opt never-worse guarantee, exact-vs-heuristic agreement on small instances, allergen/constraint enforcement for every household, EPA WARM CO2e math, CSV and JSON round-trips, malformed hash recovery, and EN/ES key parity.
+The suite covers Q10 monotonicity across every product class, FDA 41 F danger-zone boundaries, the 4-hour TCS discard rule, route feasibility, capacity and cold-chain compliance on all four scenarios, the 2-opt never-worse guarantee, exact-vs-heuristic agreement on small instances, allergen/constraint enforcement for every household, EPA WARM CO2e math, the spoils-in window agreeing with the engine's own spoil point, servings and cold-chain margins re-derived from every built-in plan, CSV and JSON round-trips, malformed hash recovery, and EN/ES key parity.
 
 A headless-browser audit (`scripts/browser-check.mjs`, needs a Playwright install pointed at it via `PLAYWRIGHT_MJS`) drives real Chrome at 1440x900 and 390x844: every tab, scenario and control is exercised; console errors, page errors, external requests and horizontal overflow are asserted to zero.
 
@@ -41,6 +41,7 @@ index.html  styles.css  app.mjs     workbench UI (pure ES modules + inline SVG)
 src/spoilage.mjs    Q10 / Arrhenius shelf-life + FDA danger-zone engine
 src/nutrition.mjs   food-group box allocator + dietary constraints
 src/routing.mjs     exact + NN/2-opt dispatch planner + EPA WARM CO2e
+src/impact.mjs      spoils-in window, servings delivered, cold-chain margins
 src/scenarios.mjs   4 scenarios + validators + CSV/JSON/hash codecs
 src/i18n.mjs        EN/ES strings, manifest text, safety checklist
 src/selftest.mjs    shared invariant suite (browser + Node)

@@ -191,6 +191,7 @@ try {
     await page.click('[data-tab="dispatch"]').catch(() => {});
     await page.locator('.scn').first().click().catch(() => {});
     await page.waitForSelector('#map circle', { timeout: 4000 }).catch(() => {});
+    await page.evaluate(() => window.scrollTo(0, 0));
     await page.waitForTimeout(250);
     await page.screenshot({ path: `${root}screenshots/${vp.name}.png` });
     await page.close();

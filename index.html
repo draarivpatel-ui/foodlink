@@ -11,6 +11,7 @@
 <body>
 <header class="topbar">
   <h1 data-i18n="appTitle">FoodLink</h1>
+  <p class="sim-badge" id="sim-badge"><span class="sim-dot" aria-hidden="true"></span><span data-i18n="simBadge">Offline simulation, deterministic, no network calls</span></p>
   <div class="top-actions">
     <button id="selftest-btn" class="btn ghost" data-i18n="selfTestButton">Run self-tests</button>
     <button id="lang-btn" class="btn ghost" data-i18n="langButton" aria-label="Switch language">ES</button>
@@ -62,17 +63,22 @@
   <section id="panel-dispatch" class="panel active" role="tabpanel" aria-labelledby="tab-btn-dispatch">
     <div class="dispatch-grid">
       <div class="map-card">
-        <svg id="map" viewBox="0 0 800 560" role="img" aria-label="Neighborhood dispatch map"></svg>
+        <svg id="map" viewBox="0 0 800 560" role="img" aria-label="Neighborhood dispatch map, route through donors and pantries in stop order"></svg>
         <div class="legend" id="map-legend"></div>
       </div>
-      <aside class="route-card">
-        <div class="stat-grid">
-          <div class="stat hero"><span class="stat-num" id="stat-kg">0</span><span class="stat-cap" id="stat-kg-cap" data-i18n="rescuedLabel">Food rescued</span></div>
-          <div class="stat"><span class="stat-num" id="stat-co2">0</span><span class="stat-cap" data-i18n="co2Label">Landfill emissions avoided</span><span class="stat-sub" data-i18n="co2Sub">EPA WARM factor, 2.5 kg CO2e per kg</span></div>
-          <div class="stat"><span class="stat-num" id="stat-spoiled">0</span><span class="stat-cap" data-i18n="spoiledLabel">Lost to spoilage</span></div>
-          <div class="stat"><span class="stat-num" id="stat-km">0</span><span class="stat-cap" data-i18n="routeKm">Route distance</span></div>
-          <div class="stat"><span class="stat-num" id="stat-min">0</span><span class="stat-cap" data-i18n="routeTime">Route time</span></div>
-          <div class="stat"><span class="stat-num" id="stat-method">-</span><span class="stat-cap" data-i18n="routeMethod">Solver</span></div>
+      <aside class="route-card" aria-labelledby="outcome-title">
+        <div class="outcome">
+          <h2 class="outcome-title" id="outcome-title" data-i18n="outcomeTitle">Dispatch outcome</h2>
+          <div class="stat-grid">
+            <div class="stat hero"><span class="stat-num" id="stat-kg">0</span><span class="stat-cap" id="stat-kg-cap" data-i18n="rescuedLabel">Food rescued</span></div>
+            <div class="stat half"><span class="stat-num" id="stat-servings">0</span><span class="stat-cap" data-i18n="servingsLabel">Servings delivered</span></div>
+            <div class="stat half"><span class="stat-num" id="stat-spoiled">0</span><span class="stat-cap" data-i18n="spoiledLabel">Lost to spoilage</span></div>
+            <div class="stat wide"><span class="stat-num" id="stat-co2">0</span><span class="stat-cap" data-i18n="co2Label">Landfill emissions avoided</span><span class="stat-sub" data-i18n="co2Sub">EPA WARM v15 donation guidance, low-end: 0.54 t CO2e per short ton (0.595 kg per kg)</span></div>
+            <div class="stat wide margin" id="stat-margin-cell"><span class="stat-num" id="stat-margin">-</span><span class="stat-cap" data-i18n="marginLabel">Tightest cold-chain margin</span><span class="meter" aria-hidden="true"><span class="meter-fill" id="stat-margin-meter"></span></span><span class="stat-sub" id="stat-margin-sub"></span></div>
+            <div class="stat third"><span class="stat-num" id="stat-km">0</span><span class="stat-cap" data-i18n="routeKm">Route distance</span></div>
+            <div class="stat third"><span class="stat-num" id="stat-min">0</span><span class="stat-cap" data-i18n="routeTime">Route time</span></div>
+            <div class="stat third"><span class="stat-num" id="stat-method">-</span><span class="stat-cap" data-i18n="routeMethod">Solver</span></div>
+          </div>
         </div>
         <ol class="stop-list" id="stop-list"></ol>
       </aside>
@@ -140,7 +146,7 @@
     <div class="selftest-head">
       <h2 id="selftest-title" data-i18n="selfTestTitle">Self-tests</h2>
       <span id="selftest-score"></span>
-      <button class="btn ghost" id="selftest-close" aria-label="Close">x</button>
+      <button class="btn ghost icon-btn" id="selftest-close" aria-label="Close"><svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M3.5 3.5l9 9M12.5 3.5l-9 9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" fill="none"/></svg></button>
     </div>
     <ul id="selftest-list"></ul>
   </div>

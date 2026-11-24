@@ -16,6 +16,7 @@ import {
 } from './src/scenarios.mjs';
 import { t, manifestLines, checklist } from './src/i18n.mjs';
 import { runSelfTests } from './src/selftest.mjs';
+import { ambientWindowHours, formatWindow, servingsDelivered, coldChainMargins } from './src/impact.mjs';
 
 const $ = (id) => document.getElementById(id);
 const SVGNS = 'http://www.w3.org/2000/svg';
@@ -124,6 +125,7 @@ function applyLang() {
   for (const el of document.querySelectorAll('[data-i18n]')) {
     el.textContent = t(state.lang, el.dataset.i18n);
   }
+  $('selftest-close').setAttribute('aria-label', t(state.lang, 'closeLabel'));
   renderScenarioButtons();
   recompute();
   renderAll();
@@ -173,16 +175,42 @@ function worstTier(donor) {
   return worst;
 }
 
+// Map labels are sized against the rendered width so they stay legible on a
+// phone, then placed at the first candidate spot that clears every node,
+// halo, stop badge, other label and the frame. A label that fits nowhere is
+// dropped; the numbered stop list beside the map still names every stop.
+let lastMapWidth = 0;
+const measureCtx = typeof document !== 'undefined' ? document.createElement('canvas').getContext('2d') : null;
+
+function labelFontUnits() {
+  const w = $('map').getBoundingClientRect().width || lastMapWidth || MAP_W;
+  lastMapWidth = w;
+  const screenPx = w < 560 ? 10.5 : 11.5;
+  return Math.min(22, Math.max(11.5, (screenPx * MAP_W) / w));
+}
+
+function textWidth(text, fontUnits) {
+  if (!measureCtx) return text.length * fontUnits * 0.56;
+  measureCtx.font = `600 ${fontUnits}px -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif`;
+  return measureCtx.measureText(text).width;
+}
+
+const overlaps = (a, b) => a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+const circleBox = (cx, cy, r) => ({ x: cx - r, y: cy - r, w: 2 * r, h: 2 * r });
+
 function renderMap() {
   const svg = $('map');
   while (svg.firstChild) svg.removeChild(svg.firstChild);
   const proj = projectPoints();
   const s = state.scenario;
   const lang = state.lang;
+  const fontU = labelFontUnits();
+  const k = Math.min(1.9, Math.max(1, fontU / 11.5)); // badge scale tracks label scale
 
+  const grid = svgEl('g', { class: 'grid', 'aria-hidden': 'true' }, svg);
   for (let i = 1; i < 8; i++) {
-    svgEl('line', { class: 'grid-line', x1: (MAP_W / 8) * i, y1: 0, x2: (MAP_W / 8) * i, y2: MAP_H }, svg);
-    svgEl('line', { class: 'grid-line', x1: 0, y1: (MAP_H / 7) * i, x2: MAP_W, y2: (MAP_H / 7) * i }, svg);
+    svgEl('line', { class: 'grid-line', x1: (MAP_W / 8) * i, y1: 0, x2: (MAP_W / 8) * i, y2: MAP_H }, grid);
+    svgEl('line', { class: 'grid-line', x1: 0, y1: (MAP_H / 7) * i, x2: MAP_W, y2: (MAP_H / 7) * i }, grid);
   }
 
   // Route polyline through planned visits.
@@ -199,93 +227,177 @@ function renderMap() {
     }, svg);
   }
 
+  const obstacles = [{ x: -1, y: -1, w: 0, h: 0 }];
+  const labels = [];
+
   // Depot.
   svgEl('rect', {
     class: 'node node-depot', x: depotPos.x - 7, y: depotPos.y - 7, width: 14, height: 14,
     transform: `rotate(45 ${depotPos.x} ${depotPos.y})`,
   }, svg).appendChild(Object.assign(document.createElementNS(SVGNS, 'title'), { textContent: s.depot.name || t(lang, 'depotLabel') }));
+  obstacles.push(circleBox(depotPos.x, depotPos.y, 11));
+  labels.push({ p: depotPos, r: 11, text: s.depot.name || t(lang, 'depotLabel'), cls: 'map-label depot' });
 
   // Donors with urgency halos.
   for (const d of s.donors) {
     const p = proj(d);
     const tier = worstTier(d);
     const color = TIER_COLOR[tier];
+    let r = 11;
     if (tier === 'critical' || tier === 'high' || tier === 'spoiled') {
       const halo = svgEl('circle', { class: 'halo', cx: p.x, cy: p.y, r: 20 }, svg);
       halo.style.stroke = color;
+      r = 22;
     }
-    const c = svgEl('circle', { class: 'node', cx: p.x, cy: p.y, r: 10 }, svg);
+    const c = svgEl('circle', { class: `node node-donor tier-${tier}`, cx: p.x, cy: p.y, r: 10 }, svg);
     c.style.fill = color;
     const title = svgEl('title', {}, c);
     const lots = (d.lots || []).map((l) => `${l.name} (${l.kg} kg)`).join(', ');
     title.textContent = `${d.name}: ${lots}`;
-    placeLabel(svg, p, d.name);
+    obstacles.push(circleBox(p.x, p.y, r));
+    labels.push({ p, r, text: d.name, cls: 'map-label' });
   }
 
   // Pantries.
   for (const p2 of s.pantries) {
     const p = proj(p2);
-    const r = svgEl('rect', { class: 'node', x: p.x - 9, y: p.y - 9, width: 18, height: 18 }, svg);
+    const r = svgEl('rect', { class: 'node node-pantry', x: p.x - 9, y: p.y - 9, width: 18, height: 18, rx: 3 }, svg);
     r.style.fill = 'var(--accent)';
     svgEl('title', {}, r).textContent = `${p2.name} (${p2.capacityKg} ${t(lang, 'kgUnit')})`;
-    placeLabel(svg, p, p2.name);
+    obstacles.push(circleBox(p.x, p.y, 12));
+    labels.push({ p, r: 12, text: p2.name, cls: 'map-label' });
   }
 
-  // Numbered stop discs along the route.
+  // Numbered stop badges sit up and to the right of each node so the node
+  // keeps its urgency color. A stop visited twice shows both numbers.
+  // Each badge tries the four diagonal corners of its node and takes the
+  // first one clear of other nodes and badges (close neighbors otherwise stack).
+  const nodeBoxes = obstacles.slice();
+  const badges = [];
   visits.forEach((v, i) => {
     const p = stopPos.get(v.stopId);
     if (!p) return;
-    svgEl('circle', { class: 'stop-disc', cx: p.x, cy: p.y, r: 8.5 }, svg);
-    svgEl('text', { class: 'stop-num', x: p.x, y: p.y + 3.5 }, svg).textContent = String(i + 1);
+    const br = 9 * k;
+    const d = 6 + br * 0.85;
+    const own = circleBox(p.x, p.y, 13);
+    const corners = [[1, -1], [-1, -1], [1, 1], [-1, 1]];
+    const tryAt = (sx, sy, step) => {
+      const bx = p.x + sx * (d + step * (2 * br + 1));
+      const by = p.y + sy * d;
+      const box = circleBox(bx, by, br + 1);
+      const clear = !badges.some((b) => overlaps(box, b))
+        && !nodeBoxes.some((n) => n !== own && !(n.x === own.x && n.y === own.y) && overlaps(box, n))
+        && bx - br > 0 && bx + br < MAP_W && by - br > 0 && by + br < MAP_H;
+      return clear ? { bx, by, box } : null;
+    };
+    let spot = null;
+    for (let step = 0; step < 3 && !spot; step++) {
+      for (const [sx, sy] of corners) { spot = tryAt(sx, sy, step); if (spot) break; }
+    }
+    if (!spot) spot = { bx: p.x + d, by: p.y - d, box: circleBox(p.x + d, p.y - d, br + 1) };
+    const { bx, by } = spot;
+    badges.push(spot.box);
+    svgEl('circle', { class: 'stop-disc', cx: bx.toFixed(1), cy: by.toFixed(1), r: br.toFixed(1) }, svg);
+    svgEl('text', { class: 'stop-num', x: bx.toFixed(1), y: (by + 3.8 * k).toFixed(1), 'font-size': (11 * k).toFixed(1) }, svg).textContent = String(i + 1);
+    obstacles.push(circleBox(bx, by, br + 1));
   });
 
-  renderLegend();
-}
+  // Place labels, most urgent first.
+  const placed = [];
+  const lineH = fontU * 1.3; // full ascent + descent, matches getBBox
+  for (const lb of labels) {
+    const w = textWidth(lb.text, fontU) * 1.06 + 8; // headroom: canvas and SVG can resolve the system face differently
+    const { x, y } = lb.p;
+    const gap = lb.r + 4;
+    const cands = [
+      { ax: x - w / 2, ay: y + gap, anchor: 'middle' },
+      { ax: x - w / 2, ay: y - gap - lineH, anchor: 'middle' },
+      { ax: x + gap, ay: y - lineH / 2, anchor: 'start' },
+      { ax: x - gap - w, ay: y - lineH / 2, anchor: 'end' },
+      { ax: x - w / 2, ay: y + gap + lineH * 0.9, anchor: 'middle' },
+      { ax: x + gap, ay: y + gap * 0.4, anchor: 'start' },
+      { ax: x - gap - w, ay: y + gap * 0.4, anchor: 'end' },
+    ];
+    let spot = null;
+    for (const c of cands) {
+      const box = { x: c.ax, y: c.ay, w, h: lineH };
+      if (box.x < 4 || box.y < 4 || box.x + box.w > MAP_W - 4 || box.y + box.h > MAP_H - 4) continue;
+      if (obstacles.some((o) => overlaps(box, o)) || placed.some((o) => overlaps(box, o))) continue;
+      spot = { ...c, box };
+      break;
+    }
+    if (!spot) continue;
+    placed.push(spot.box);
+    const tx = spot.anchor === 'middle' ? spot.box.x + w / 2 : spot.anchor === 'start' ? spot.box.x + 3 : spot.box.x + w - 3;
+    const el = svgEl('text', {
+      class: lb.cls,
+      x: tx.toFixed(1),
+      y: (spot.box.y + fontU * 1.0).toFixed(1),
+      'text-anchor': spot.anchor,
+      'font-size': fontU.toFixed(2),
+    }, svg);
+    el.textContent = lb.text;
+  }
 
-// Labels sit below a node, flipping to the left side near the right edge so
-// the text never clips the viewBox or covers the numbered stop disc.
-function placeLabel(svg, p, text) {
-  const flip = p.x > MAP_W - 150;
-  const el = svgEl('text', {
-    class: 'map-label',
-    x: flip ? p.x - 14 : p.x,
-    y: flip ? p.y + 4 : p.y + 24,
-    'text-anchor': flip ? 'end' : 'middle',
-  }, svg);
-  el.textContent = text;
+  renderLegend();
 }
 
 function renderLegend() {
   const el = $('map-legend');
   el.innerHTML = '';
-  const items = [
-    ['legendDepot', 'var(--ink)'],
-    ['legendDonor', 'var(--high)'],
-    ['legendPantry', 'var(--accent)'],
-    ['legendRoute', 'transparent'],
-  ];
-  for (const [key, color] of items) {
+  const add = (label, cls, style = {}) => {
     const span = document.createElement('span');
     span.className = 'key';
     const sw = document.createElement('span');
-    sw.className = 'swatch';
-    sw.style.background = color;
-    if (color === 'transparent') sw.style.borderBottom = '3px dashed var(--ink)';
-    span.append(sw, document.createTextNode(t(state.lang, key)));
+    sw.className = `swatch ${cls}`;
+    Object.assign(sw.style, style);
+    span.append(sw, document.createTextNode(label));
     el.appendChild(span);
+  };
+  const L = (k) => t(state.lang, k);
+  add(L('legendDepot'), 'sw-depot');
+  add(L('legendPantry'), 'sw-pantry');
+  for (const tier of ['critical', 'high', 'watch', 'stable', 'spoiled']) {
+    add(`${L('legendDonor')}: ${L(`tier${tier[0].toUpperCase()}${tier.slice(1)}`).toLowerCase()}`, 'sw-donor', { background: TIER_COLOR[tier] });
   }
+  add(L('legendRoute'), 'sw-route');
+  add(L('legendStop'), 'sw-stop');
 }
 
 const clock = (min) => `${String(Math.floor(min / 60)).padStart(2, '0')}:${String(Math.round(min) % 60).padStart(2, '0')}`;
 
 function renderStats() {
   const plan = state.plan;
-  $('stat-kg').textContent = `${plan.rescuedKg ?? 0} kg`;
-  $('stat-co2').textContent = `${co2eKg(plan.rescuedKg ?? 0)} kg`;
-  $('stat-spoiled').textContent = `${plan.spoiledKg ?? 0} kg`;
+  const kgFmt = (n) => `${Math.round((n ?? 0) * 10) / 10} kg`;
+  $('stat-kg').textContent = kgFmt(plan.rescuedKg);
+  $('stat-servings').textContent = String(servingsDelivered(plan, state.scenario));
+  $('stat-co2').textContent = `${co2eKg(plan.rescuedKg ?? 0)} kg CO2e`;
+  $('stat-spoiled').textContent = kgFmt(plan.spoiledKg);
   $('stat-km').textContent = `${(plan.km ?? 0).toFixed(1)} km`;
   $('stat-min').textContent = `${Math.round(plan.totalMinutes ?? 0)} min`;
   $('stat-method').textContent = plan.method || '-';
+  $('stat-spoiled').classList.toggle('bad', (plan.spoiledKg ?? 0) > 0);
+
+  const budget = state.params.coldChainMaxMin;
+  const { tightest } = coldChainMargins(plan, state.scenario, budget);
+  const cell = $('stat-margin-cell');
+  const meter = $('stat-margin-meter');
+  if (tightest) {
+    const used = Math.min(1, Math.max(0, tightest.transitMin / budget));
+    $('stat-margin').textContent = `${Math.round(tightest.marginMin)} min`;
+    $('stat-margin-sub').textContent = t(state.lang, 'marginSub', {
+      lot: tightest.name, transit: Math.round(tightest.transitMin), budget,
+    });
+    meter.style.width = `${used * 100}%`;
+    cell.classList.toggle('tight', used >= 0.75);
+    cell.classList.remove('empty');
+  } else {
+    $('stat-margin').textContent = '-';
+    $('stat-margin-sub').textContent = t(state.lang, 'marginNone');
+    meter.style.width = '0%';
+    cell.classList.remove('tight');
+    cell.classList.add('empty');
+  }
 }
 
 function renderStops() {
@@ -333,7 +445,7 @@ function renderShelf() {
   for (const { lot, donor, a } of rows) {
     const tier = a.tier || 'stable';
     const row = document.createElement('div');
-    row.className = 'lot-row';
+    row.className = `lot-row tier-row-${tier}`;
 
     const nameCell = document.createElement('div');
     nameCell.className = 'name';
@@ -365,8 +477,13 @@ function renderShelf() {
     bar.appendChild(fill);
     const cap = document.createElement('span');
     cap.className = 'bar-caption';
-    cap.textContent = `${t(state.lang, 'lifeLeft')}: ${a.spoiled ? t(state.lang, 'tierSpoiled') : formatHours(a.lifeLeftHours ?? 0)}`;
-    lifeCell.append(bar, cap);
+    cap.textContent = `${t(state.lang, 'lifeLeft')}: ${a.spoiled ? t(state.lang, 'lifeAtRef', { t: '0 h' }) : t(state.lang, 'lifeAtRef', { t: formatHours(a.lifeLeftHours ?? 0) })}`;
+    const win = document.createElement('span');
+    win.className = `spoil-window tier-text-${tier}`;
+    win.textContent = a.spoiled
+      ? t(state.lang, a.cause === 'danger-zone' ? 'spoiledDanger' : 'spoiledAge')
+      : t(state.lang, 'spoilsIn', { t: formatWindow(ambientWindowHours(lot, a, state.params.ambientC)), c: state.params.ambientC });
+    lifeCell.append(win, bar, cap);
 
     const dCell = document.createElement('div');
     dCell.className = 'dangercell';
@@ -464,7 +581,7 @@ function renderBoxes() {
   const lo = $('leftovers');
   const left = state.allocation?.leftovers || [];
   lo.textContent = left.length
-    ? `${t(state.lang, 'rescuedLabel')}: ${left.length} lots unallocated (${left.reduce((n, x) => n + x.kgLeft, 0).toFixed(1)} kg left)`
+    ? t(state.lang, 'leftoverNote', { n: left.length, kg: left.reduce((n, x) => n + x.kgLeft, 0).toFixed(1) })
     : '';
 }
 
@@ -728,6 +845,17 @@ function download(name, text, mime) {
 
 // ---------- boot ----------
 
+function watchMapWidth() {
+  if (typeof ResizeObserver === 'undefined') return;
+  let pending = 0;
+  new ResizeObserver((entries) => {
+    const w = entries[0]?.contentRect?.width || 0;
+    if (!w || Math.abs(w - lastMapWidth) < 24) return;
+    cancelAnimationFrame(pending);
+    pending = requestAnimationFrame(() => renderMap());
+  }).observe($('map'));
+}
+
 function boot() {
   loadFromHash();
   document.documentElement.dataset.theme = state.theme;
@@ -735,6 +863,7 @@ function boot() {
   syncControls();
   applyLang();
   syncHash();
+  watchMapWidth();
   if (state._refreshDonors) state._refreshDonors();
   // Keep the donor select in sync after scenario switches.
   for (const b of $('scenario-buttons').querySelectorAll('.scn')) {
