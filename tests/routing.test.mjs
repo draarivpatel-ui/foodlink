@@ -333,6 +333,37 @@ test('routeDistanceKm sums legs from the depot', () => {
   assert.ok(Math.abs(expect - plan.km) < 1e-9);
 });
 
+test('exactPlan skips an unreachable donor instead of sacrificing the rescuable route', () => {
+  const s = miniScenario({
+    donors: [
+      donor('far', 0, 1, 0, 601, [lot('lost', 10)]),
+      donor('near', 0, 0.01, 0, 2000, [lot('saved', 10)]),
+    ],
+    pantries: [pantry('p1', 0, 0.02, 0, 2000, 100)],
+  });
+  const ctx = buildContext(s, {});
+  const plan = exactPlan(ctx);
+  assert.equal(plan.feasible, true);
+  assert.equal(plan.rescuedKg, 10);
+  assert.deepEqual(plan.order.map((x) => x.id), ['near', 'p1']);
+  assert.deepEqual(plan.skipped, ['far']);
+});
+
+test('exactPlan may skip an unnecessary pantry when every kilogram fits in one', () => {
+  const s = miniScenario({
+    donors: [donor('d1', 0, 0.01, 0, 2000, [lot('l1', 10)])],
+    pantries: [
+      pantry('p-big', 0, 0.02, 0, 2000, 100),
+      pantry('p-extra', 0, 0.03, 0, 100, 100),
+    ],
+  });
+  const ctx = buildContext(s, {});
+  const plan = exactPlan(ctx);
+  assert.equal(plan.rescuedKg, 10);
+  assert.deepEqual(plan.order.map((x) => x.id), ['d1', 'p-big']);
+  assert.deepEqual(plan.skipped, ['p-extra']);
+});
+
 test('nearestNeighborPlan only queues stops that are still open', () => {
   const s = miniScenario({
     donors: [donor('past', 0, 0.01, 0, 100), donor('open', 0, 0.02, 0, 2000, [lot('l', 5)])],

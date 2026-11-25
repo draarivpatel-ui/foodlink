@@ -225,24 +225,54 @@ export function twoOptImprove(order, ctx, maxIter = 60) {
   return { ...bestSim, iterations };
 }
 
-// Exhaustive permutation search for small instances (n <= ~8).
+// Exhaustive subset-and-permutation search for small instances (n <= ~8).
+// A stop that cannot be reached inside its window must not poison the whole
+// plan: the exact solver compares every ordered subset, then reports the
+// stops it left out. This is still exact for the rescue objective because a
+// feasible full route is only one candidate among the subsets.
 export function exactPlan(ctx) {
   const stops = ctx.stops.slice();
   let best = null;
-  const permute = (arr, l) => {
-    if (l === arr.length) {
-      const sim = simulateOrder(arr.slice(), ctx);
-      if (betterPlan(sim, best)) best = sim;
+  // Exact-search scoring keeps the rescue objective first, then covers every
+  // stop it can. Coverage outranks minutes here so a redundant but reachable
+  // pantry still becomes a volunteer hand-off instead of being optimized away;
+  // a stop is skipped only when visiting it is impossible or costs rescued food.
+  const betterExact = (a, b) => {
+    if (b == null) return true;
+    if (a.feasible !== b.feasible) return a.feasible;
+    if (!a.feasible) return a.totalMinutes < b.totalMinutes;
+    if (a.rescuedKg !== b.rescuedKg) return a.rescuedKg > b.rescuedKg;
+    if (a.order.length !== b.order.length) return a.order.length > b.order.length;
+    return a.totalMinutes < b.totalMinutes;
+  };
+  const consider = (indices) => {
+    const order = indices.map((i) => stops[i]);
+    const chosen = new Set(indices);
+    const sim = simulateOrder(order, ctx);
+    sim.skipped = stops.filter((_, i) => !chosen.has(i)).map((s) => s.id);
+    if (betterExact(sim, best)) best = sim;
+  };
+
+  consider([]);
+  const used = new Array(stops.length).fill(false);
+  const current = [];
+  const permuteLength = (targetLen) => {
+    if (current.length === targetLen) {
+      consider(current.slice());
       return;
     }
-    for (let i = l; i < arr.length; i++) {
-      [arr[l], arr[i]] = [arr[i], arr[l]];
-      permute(arr, l + 1);
-      [arr[l], arr[i]] = [arr[i], arr[l]];
+    for (let i = 0; i < stops.length; i++) {
+      if (used[i]) continue;
+      used[i] = true;
+      current.push(i);
+      permuteLength(targetLen);
+      current.pop();
+      used[i] = false;
     }
   };
-  permute(stops, 0);
-  return best || { feasible: false, violations: [{ kind: 'none' }], visits: [], km: 0, rescuedKg: 0, spoiledKg: 0, totalMinutes: 0, order: [] };
+  for (let len = 1; len <= stops.length; len++) permuteLength(len);
+
+  return best || { feasible: false, violations: [{ kind: 'none' }], visits: [], km: 0, rescuedKg: 0, spoiledKg: 0, totalMinutes: 0, order: [], skipped: stops.map((s) => s.id) };
 }
 
 // Top-level entry: exact search up to exactMax stops, NN + 2-opt beyond.

@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>FoodLink</title>
 <meta name="description" content="FoodLink: offline community food-rescue and perishable pantry allocation workbench. Cold-chain triage, dispatch routing and balanced household boxes, all client-side.">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; connect-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="color-scheme" content="light dark">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="styles.css">
 </head>
@@ -53,12 +55,12 @@
 </section>
 
 <nav class="tabs" role="tablist" aria-label="Workbench views">
-  <button class="tab active" role="tab" aria-selected="true" data-tab="dispatch" id="tab-btn-dispatch" data-i18n="tabDispatch">Dispatch map</button>
-  <button class="tab" role="tab" aria-selected="false" data-tab="board" id="tab-btn-board"><span data-i18n="tabBoard">Volunteer board</span><span class="tab-count" id="tab-board-count" aria-hidden="true"></span></button>
-  <button class="tab" role="tab" aria-selected="false" data-tab="shelf" id="tab-btn-shelf" data-i18n="tabShelf">Shelf-life triage</button>
-  <button class="tab" role="tab" aria-selected="false" data-tab="boxes" id="tab-btn-boxes" data-i18n="tabBoxes">Household boxes</button>
-  <button class="tab" role="tab" aria-selected="false" data-tab="manifest" id="tab-btn-manifest" data-i18n="tabManifest">Manifest &amp; checklist</button>
-  <button class="tab" role="tab" aria-selected="false" data-tab="data" id="tab-btn-data" data-i18n="tabData">Data &amp; sharing</button>
+  <button class="tab active" role="tab" aria-selected="true" data-tab="dispatch" id="tab-btn-dispatch" aria-controls="panel-dispatch" data-i18n="tabDispatch">Dispatch map</button>
+  <button class="tab" role="tab" aria-selected="false" data-tab="board" id="tab-btn-board" aria-controls="panel-board" tabindex="-1"><span data-i18n="tabBoard">Volunteer board</span><span class="tab-count" id="tab-board-count" aria-hidden="true"></span></button>
+  <button class="tab" role="tab" aria-selected="false" data-tab="shelf" id="tab-btn-shelf" aria-controls="panel-shelf" tabindex="-1" data-i18n="tabShelf">Shelf-life triage</button>
+  <button class="tab" role="tab" aria-selected="false" data-tab="boxes" id="tab-btn-boxes" aria-controls="panel-boxes" tabindex="-1" data-i18n="tabBoxes">Household boxes</button>
+  <button class="tab" role="tab" aria-selected="false" data-tab="manifest" id="tab-btn-manifest" aria-controls="panel-manifest" tabindex="-1" data-i18n="tabManifest">Manifest &amp; checklist</button>
+  <button class="tab" role="tab" aria-selected="false" data-tab="data" id="tab-btn-data" aria-controls="panel-data" tabindex="-1" data-i18n="tabData">Data &amp; sharing</button>
 </nav>
 
 <main>

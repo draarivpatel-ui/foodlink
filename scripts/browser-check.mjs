@@ -2,13 +2,13 @@
 // Drives real headless Chromium via Playwright (resolved from the
 // PLAYWRIGHT_MJS env path or a normal `playwright` package resolution, so
 // the repo itself stays zero-dependency). Verifies, at desktop and mobile
-// viewports:
+// viewports (desktop, tablet and mobile):
 //   * 0 console errors, 0 uncaught page errors
 //   * 0 external network requests (everything is local)
 //   * 0 horizontal overflow
 //   * every tab, scenario, slider, language, theme, self-test, import and
-//     add-lot interaction works
-// and writes screenshots/{desktop,mobile}.png.
+//     add-lot interaction works, including arrow-key tab navigation
+// and writes screenshots/{desktop,mobile}.png (all widths when BROWSER_SCREENSHOTS_DIR is set).
 //
 // Run: PLAYWRIGHT_MJS=<file:///abs/path/to/playwright/index.mjs> node scripts/browser-check.mjs
 
@@ -18,6 +18,7 @@ import { fileURLToPath } from 'node:url';
 import { createStaticServer } from './serve.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
+const shots = process.env.BROWSER_SCREENSHOTS_DIR ? `${process.env.BROWSER_SCREENSHOTS_DIR.replace(/\/$/, '')}/` : `${root}screenshots/`;
 const require = createRequire(import.meta.url);
 
 async function loadPlaywright() {
@@ -47,15 +48,26 @@ const check = (name, ok, detail = '') => {
 
 const { server, port } = await createStaticServer(0);
 const base = `http://127.0.0.1:${port}`;
-const browser = await playwright.chromium.launch({ channel: 'chrome' }).catch(() => playwright.chromium.launch());
+const launchOptions = {
+  channel: 'chrome',
+  headless: true,
+  args: ['--headless=new', '--mute-audio', '--disable-blink-features=AutomationControlled'],
+};
+if (process.env.BROWSER_DOWNLOADS_DIR) launchOptions.downloadsPath = process.env.BROWSER_DOWNLOADS_DIR;
+const browser = await playwright.chromium.launch(launchOptions).catch(() => {
+  const fallback = { ...launchOptions };
+  delete fallback.channel;
+  return playwright.chromium.launch(fallback);
+});
 
 const VIEWPORTS = [
   { name: 'desktop', width: 1440, height: 900 },
+  { name: 'tablet', width: 768, height: 1024 },
   { name: 'mobile', width: 390, height: 844 },
 ];
 
 try {
-  await mkdir(`${root}screenshots`, { recursive: true });
+  await mkdir(shots, { recursive: true });
   for (const vp of VIEWPORTS) {
     const page = await browser.newPage({ viewport: { width: vp.width, height: vp.height } });
     const consoleErrors = [];
@@ -73,7 +85,7 @@ try {
       await page.waitForSelector('#map circle', { timeout: 8000 });
     } catch (err) {
       check(`${vp.name}: page boots and renders map`, false, String(err.message || err).split('\n')[0]);
-      await page.screenshot({ path: `${root}screenshots/${vp.name}.png` }).catch(() => {});
+      if (process.env.BROWSER_SCREENSHOTS_DIR || vp.name !== 'tablet') await page.screenshot({ path: `${shots}${vp.name}.png` }).catch(() => {});
       await page.close();
       continue;
     }
@@ -91,6 +103,14 @@ try {
         await page.waitForSelector(`#panel-${tab}.active`, { timeout: 4000 });
       });
     }
+
+    await step('arrow keys move the tablist', async () => {
+      await page.locator('#tab-btn-dispatch').focus();
+      await page.keyboard.press('ArrowRight');
+      await page.waitForSelector('#panel-board.active', { timeout: 3000 });
+      await page.keyboard.press('ArrowLeft');
+      await page.waitForSelector('#panel-dispatch.active', { timeout: 3000 });
+    });
 
     // Scenario switching: click every scenario button.
     const scnCount = await page.locator('.scn').count();
@@ -256,6 +276,8 @@ try {
     await page.waitForTimeout(120);
     const shareUrl = await page.inputValue('#share-url');
     check(`${vp.name}: add-lot updates share hash`, shareUrl.includes('#s='), 'hash present');
+    const scnIds = await page.locator('.scn').evaluateAll((els) => els.map((el) => el.dataset.scn));
+    check(`${vp.name}: editing a built-in scenario adds one distinct custom chip`, scnIds.filter((x) => x.endsWith('-custom')).length === 1 && new Set(scnIds).size === scnIds.length, scnIds.join(','));
 
     // JSON export into the textarea.
     const [dl] = await Promise.all([
@@ -264,6 +286,7 @@ try {
     ]);
     const exportText = await page.inputValue('#import-text');
     check(`${vp.name}: JSON export fills textarea`, exportText.includes('"scenario"'), dl ? 'download ok' : 'download skipped');
+    if (dl) await dl.delete().catch(() => {});
 
     // Malformed import is rejected with a message.
     await page.fill('#import-text', '{not json');
@@ -289,7 +312,7 @@ try {
     await page.waitForSelector('#map circle', { timeout: 4000 }).catch(() => {});
     await page.evaluate(() => window.scrollTo(0, 0));
     await page.waitForTimeout(250);
-    await page.screenshot({ path: `${root}screenshots/${vp.name}.png` });
+    if (process.env.BROWSER_SCREENSHOTS_DIR || vp.name !== 'tablet') await page.screenshot({ path: `${shots}${vp.name}.png` });
     await page.close();
   }
 } finally {
@@ -298,5 +321,5 @@ try {
 }
 
 const failed = results.filter((r) => !r.ok);
-console.log(`\n${results.length - failed.length}/${results.length} browser checks passed at 2 viewports`);
+console.log(`\n${results.length - failed.length}/${results.length} browser checks passed at 3 viewports`);
 process.exit(failed.length ? 1 : 0);

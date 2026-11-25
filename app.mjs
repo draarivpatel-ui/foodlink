@@ -401,7 +401,10 @@ function renderLegend() {
   add(L('legendStop'), 'sw-stop');
 }
 
-const clock = (min) => `${String(Math.floor(min / 60)).padStart(2, '0')}:${String(Math.round(min) % 60).padStart(2, '0')}`;
+const clock = (min) => {
+  const rounded = Math.round(min);
+  return `${String(Math.floor(rounded / 60)).padStart(2, '0')}:${String(rounded % 60).padStart(2, '0')}`;
+};
 
 function renderStats() {
   const plan = state.plan;
@@ -957,8 +960,21 @@ function wireControls() {
   bind('in-speed', 'speedKmh');
   bind('in-chain', 'coldChainMaxMin');
 
-  for (const tab of document.querySelectorAll('.tab')) {
+  const tabEls = [...document.querySelectorAll('.tab')];
+  for (const tab of tabEls) {
     tab.addEventListener('click', () => selectTab(tab.dataset.tab));
+    tab.addEventListener('keydown', (e) => {
+      const i = tabEls.indexOf(tab);
+      let next = null;
+      if (e.key === 'ArrowRight') next = tabEls[(i + 1) % tabEls.length];
+      else if (e.key === 'ArrowLeft') next = tabEls[(i + tabEls.length - 1) % tabEls.length];
+      else if (e.key === 'Home') next = tabEls[0];
+      else if (e.key === 'End') next = tabEls[tabEls.length - 1];
+      if (!next) return;
+      e.preventDefault();
+      selectTab(next.dataset.tab);
+      next.focus();
+    });
   }
   $('coverage-open').addEventListener('click', () => {
     selectTab('board');
@@ -1145,6 +1161,11 @@ function wireControls() {
   };
   refreshDonors();
   $('add-lot').addEventListener('click', () => {
+    if (!state.dirty && SCENARIOS.some((x) => x.id === state.scenarioId)) {
+      state.scenario.id = `${state.scenarioId}-custom`;
+      state.scenario.name = `${state.scenario.name} (edited)`;
+      state.scenarioId = state.scenario.id;
+    }
     const donor = state.scenario.donors.find((d) => d.id === donorSel.value) || state.scenario.donors[0];
     if (!donor) return;
     const allergens = [...allergenWrap.querySelectorAll('input:checked')].map((x) => x.value);
@@ -1163,6 +1184,7 @@ function wireControls() {
     });
     state.dirty = true;
     recompute();
+    renderScenarioButtons();
     renderAll();
     syncHash();
   });
@@ -1175,6 +1197,7 @@ function selectTab(name) {
     const on = x.dataset.tab === name;
     x.classList.toggle('active', on);
     x.setAttribute('aria-selected', on ? 'true' : 'false');
+    x.tabIndex = on ? 0 : -1;
   });
   document.querySelectorAll('.panel').forEach((p) => {
     p.classList.toggle('active', p.id === `panel-${name}`);
