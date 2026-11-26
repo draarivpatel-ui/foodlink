@@ -114,16 +114,16 @@ export function simulateOrder(order, ctx) {
       const used = pantryUsed.get(stop.id) ?? 0;
       const capacity = stop.ref.capacityKg ?? Infinity;
       let roomKg = capacity - used;
-      let unloadedKg = 0;
+      let acceptedKg = 0;
       for (const lot of carried.slice()) {
         if (lot.kg > roomKg) continue;
         const transitMin = arrive - lot.pickedAt;
         const okChain = !isTCS(lot) || transitMin <= ctx.coldChainMaxMin;
         carried.splice(carried.indexOf(lot), 1);
         loadKg -= lot.kg;
-        roomKg -= lot.kg;
-        unloadedKg += lot.kg;
         if (okChain) {
+          roomKg -= lot.kg;
+          acceptedKg += lot.kg;
           delivered.push(lot.id);
           rescuedKg += lot.kg;
         } else {
@@ -131,7 +131,7 @@ export function simulateOrder(order, ctx) {
           spoiledKg += lot.kg;
         }
       }
-      pantryUsed.set(stop.id, used + unloadedKg);
+      pantryUsed.set(stop.id, used + acceptedKg);
       pushVisit(stop, arrive, depart, wait, { delivered, spoiledOnArrival, loadKg });
     }
     t = depart;

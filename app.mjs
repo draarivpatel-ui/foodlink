@@ -1109,6 +1109,7 @@ function wireControls() {
     } else {
       applyScenario(getScenario(SCENARIOS[0].id), SCENARIOS[0].id);
     }
+    state._refreshDonors?.();
     recompute();
     renderAll();
     syncHash();
@@ -1138,6 +1139,7 @@ function wireControls() {
     if (applied) {
       clearBoard();
       msg.textContent = '';
+      state._refreshDonors?.();
       recompute();
       renderAll();
       syncHash();

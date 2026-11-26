@@ -155,6 +155,23 @@ test('pantry capacity caps what it accepts', () => {
   assert.equal(sim.strandedKg, 60);
 });
 
+test('spoiled-on-arrival lots do not consume pantry acceptance capacity', () => {
+  const s = miniScenario({
+    coldChainMaxMin: 30,
+    vehicle: { capacityKg: 300, speedKmh: 30, serviceMin: 5 },
+    donors: [donor('d1', 0, 0.01, 0, 1000, [
+      lot('milk', 40, { category: 'dairy' }),
+      lot('rice', 40, { category: 'dry' }),
+    ])],
+    pantries: [pantry('p1', 0, 1.0, 0, 4000, 50)],
+  });
+  const ctx = buildContext(s, {});
+  const sim = simulateOrder(ctx.stops, ctx);
+  assert.deepEqual(sim.visits[1].spoiledOnArrival, ['milk']);
+  assert.deepEqual(sim.visits[1].delivered, ['rice']);
+  assert.equal(sim.rescuedKg, 40);
+});
+
 test('a second pantry visit can unload the remainder', () => {
   const s = miniScenario({
     vehicle: { capacityKg: 300, speedKmh: 30, serviceMin: 5 },

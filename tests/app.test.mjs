@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { PRODUCT_CLASSES, assessLot, cToF } from '../src/spoilage.mjs';
 import { ALLERGENS, allocateBoxes } from '../src/nutrition.mjs';
 import { planRoute, co2eKg } from '../src/routing.mjs';
-import { SCENARIOS, getScenario, allLots, encodeState, decodeState, validateScenario } from '../src/scenarios.mjs';
+import { SCENARIOS, getScenario, allLots, encodeState, decodeState, validateScenario, scenarioFromCSV } from '../src/scenarios.mjs';
 import { buildRuns } from '../src/shifts.mjs';
 import { servingsDelivered } from '../src/impact.mjs';
 import { t } from '../src/i18n.mjs';
@@ -155,4 +155,75 @@ test('language switching translates editor labels, slider names and tags without
   for (const label of checkboxLabels()) assert.equal(label.text, label.checkbox.value);
   assert.equal($('lot-tags').placeholder, 'e.g., halal; vegetarian');
   assert.equal(checkboxLabels()[1].checkbox.checked, true);
+});
+
+test('import and reset rebuild the lot donor choices for the active scenario', () => {
+  const state = initialState();
+  const byId = new Map();
+  const makeElement = (tag) => {
+    const node = {
+      tag, dataset: {}, attributes: {}, children: [], listeners: {}, style: {},
+      value: '', textContent: '', placeholder: '', type: '', checked: false,
+      classList: { add() {}, remove() {}, toggle() {}, contains: () => false },
+      setAttribute(name, value) { this.attributes[name] = String(value); },
+      append(...children) { this.children.push(...children); },
+      appendChild(child) { this.children.push(child); return child; },
+      addEventListener(type, fn) { (this.listeners[type] ||= []).push(fn); },
+      querySelectorAll(selector) {
+        const flat = (n) => [n, ...n.children.flatMap(flat)];
+        if (selector === 'input:checked') return flat(this).filter((x) => x.type === 'checkbox' && x.checked);
+        return [];
+      },
+    };
+    Object.defineProperty(node, 'innerHTML', {
+      get() { return ''; },
+      set(value) { if (value === '') this.children = []; },
+    });
+    return node;
+  };
+  const $ = (id) => {
+    if (!byId.has(id)) byId.set(id, makeElement('div'));
+    return byId.get(id);
+  };
+  const document = {
+    createElement: makeElement,
+    querySelectorAll: () => [],
+    body: makeElement('body'),
+    documentElement: {},
+  };
+  const applyScenario = (s, id) => {
+    state.scenario = s;
+    state.scenarioId = id || s.id || 'custom';
+    state.dirty = !id;
+  };
+  const { wireControls } = appFunctions(['wireControls'], {
+    state, $, document, window: { addEventListener() {} }, t,
+    PRODUCT_CLASSES, ALLERGENS, SCENARIOS, getScenario, validateScenario, scenarioFromCSV,
+    applyScenario, clearBoard: () => {}, recompute: () => {}, renderAll: () => {}, syncHash: () => {},
+    exportStateJSON: JSON.stringify, download: () => {}, briefJSON: () => ({}), boardState: () => ({ active: {}, reach: {} }),
+    flashBrief: () => {}, runSelfTests: () => ({ passed: 0, failed: 0, results: [] }), selectTab: () => {},
+    navigator: {}, location: { href: 'http://local/' }, history: {}, encodeState, decodeState,
+  });
+  wireControls();
+  assert.deepEqual(
+    $('lot-donor').children.map((o) => o.textContent),
+    state.scenario.donors.map((d) => d.name),
+  );
+
+  const imported = getScenario('school-cafeteria');
+  imported.id = 'imported-custom';
+  $('import-text').value = JSON.stringify({ scenario: imported });
+  $('import-btn').listeners.click[0]();
+  assert.deepEqual(
+    $('lot-donor').children.map((o) => o.textContent),
+    imported.donors.map((d) => d.name),
+    'import must replace stale donor options',
+  );
+
+  $('reset-btn').listeners.click[0]();
+  assert.deepEqual(
+    $('lot-donor').children.map((o) => o.textContent),
+    SCENARIOS[0].donors.map((d) => d.name),
+    'reset must replace stale donor options',
+  );
 });

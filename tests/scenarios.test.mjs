@@ -69,12 +69,23 @@ const invalidCases = [
   ['donor window inverted', (() => { const s = good(); s.donors[0].openMin = 900; s.donors[0].closeMin = 100; return s; })()],
   ['lot bad category', (() => { const s = good(); s.donors[0].lots[0].category = 'air'; return s; })()],
   ['lot zero kg', (() => { const s = good(); s.donors[0].lots[0].kg = 0; return s; })()],
+  ['lot fractional servings', (() => { const s = good(); s.donors[0].lots[0].servings = 2.5; return s; })()],
   ['lot bad allergen', (() => { const s = good(); s.donors[0].lots[0].allergens = ['kryptonite']; return s; })()],
   ['duplicate entity ids', (() => { const s = good(); s.donors[1].id = s.donors[0].id; return s; })()],
   ['pantry zero capacity', (() => { const s = good(); s.pantries[0].capacityKg = 0; return s; })()],
   ['household bad size', (() => { const s = good(); s.households[0].size = 0; return s; })()],
+  ['household fractional size', (() => { const s = good(); s.households[0].size = 1.5; return s; })()],
   ['household bad constraint', (() => { const s = good(); s.households[0].constraints = ['paleo']; return s; })()],
   ['vehicle missing capacity', (() => { const s = good(); s.vehicle = { speedKmh: 30 }; return s; })()],
+  ['negative service minutes', (() => { const s = good(); s.vehicle.serviceMin = -1; return s; })()],
+  ['lot tags as a string', (() => { const s = good(); s.donors[0].lots[0].tags = 'meat'; return s; })()],
+  ['lot tags with a non-string entry', (() => { const s = good(); s.donors[0].lots[0].tags = [['meat']]; return s; })()],
+  ['negative sugar hides diabetic risk', (() => { const s = good(); s.donors[0].lots[0].sugarG = -1; return s; })()],
+  ['negative sodium hides diabetic risk', (() => { const s = good(); s.donors[0].lots[0].sodiumMg = -1; return s; })()],
+  ['non-finite protein total', (() => { const s = good(); s.donors[0].lots[0].proteinG = Infinity; return s; })()],
+  ['tcs override as a string', (() => { const s = good(); s.donors[0].lots[0].tcs = 'false'; return s; })()],
+  ['profile with negative minutes', (() => { const s = good(); s.donors[0].lots[0].profile = [{ tempC: 20, minutes: -1 }]; return s; })()],
+  ['profile with non-finite temperature', (() => { const s = good(); s.donors[0].lots[0].profile = [{ tempC: NaN, minutes: 1 }]; return s; })()],
 ];
 
 for (const [name, input] of invalidCases) {
@@ -105,6 +116,19 @@ test('parseCSV ignores a trailing newline', () => {
   assert.equal(parseCSV('a\n').length, 1);
 });
 test('parseCSV survives empty input', () => assert.deepEqual(parseCSV(''), []));
+test('parseCSV rejects an unterminated quoted field', () => {
+  assert.throws(() => parseCSV('a,"unterminated\nb,c\n'), /unterminated/i);
+});
+test('scenarioFromCSV reports malformed quoting instead of throwing', () => {
+  const res = scenarioFromCSV('meta,20,600,100,30,10,120\ndepot,"broken,0,0\n');
+  assert.equal(res.ok, false);
+  assert.ok(res.errors.some((e) => /unterminated/i.test(e)));
+});
+test('lotsFromCSV reports malformed quoting instead of throwing', () => {
+  const res = lotsFromCSV('name,category,kg,servings\n"broken,produce,1,2\n');
+  assert.equal(res.ok, false);
+  assert.ok(res.errors.some((e) => /unterminated/i.test(e)));
+});
 
 for (const s of SCENARIOS) {
   test(`${s.id}: CSV round-trip preserves structure`, () => {

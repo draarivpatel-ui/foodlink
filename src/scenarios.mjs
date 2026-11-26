@@ -208,6 +208,7 @@ export function validateScenario(raw) {
   const v = s.vehicle || {};
   if (!num(v.capacityKg) || v.capacityKg <= 0) fail('vehicle.capacityKg required');
   if (!num(v.speedKmh) || v.speedKmh <= 0) fail('vehicle.speedKmh required');
+  if (v.serviceMin != null && (!num(v.serviceMin) || v.serviceMin < 0)) fail('vehicle.serviceMin invalid');
   if (s.depot == null || !num(s.depot.lat) || !num(s.depot.lon)) fail('depot lat/lon required');
 
   const ids = new Set();
@@ -229,11 +230,24 @@ export function validateScenario(raw) {
       ids.add(l?.id);
       if (!CLASS_KEYS.includes(l?.category)) fail(`${l.id} bad category ${l.category}`);
       if (!num(l.kg) || l.kg <= 0) fail(`${l.id} kg must be > 0`);
-      if (!num(l.servings) || l.servings <= 0) fail(`${l.id} servings must be > 0`);
+      if (!Number.isInteger(l.servings) || l.servings <= 0) fail(`${l.id} servings must be a positive integer`);
       if (l.freshHours != null && (!num(l.freshHours) || l.freshHours < 0)) fail(`${l.id} freshHours invalid`);
+      if (l.tcs != null && typeof l.tcs !== 'boolean') fail(`${l.id} tcs must be boolean`);
+      if (l.profile != null) {
+        if (!arrOk(l.profile)) fail(`${l.id} profile must be an array`);
+        else for (const seg of l.profile) {
+          if (!num(seg?.tempC) || !num(seg?.minutes) || seg.minutes < 0) fail(`${l.id} profile segment invalid`);
+        }
+      }
       if (arrOk(l.allergens)) {
         for (const a of l.allergens) if (!ALLERGENS.includes(a)) fail(`${l.id} unknown allergen ${a}`);
       } else if (l.allergens != null) fail(`${l.id} allergens must be an array`);
+      if (arrOk(l.tags)) {
+        for (const tag of l.tags) if (typeof tag !== 'string' || !tag.trim()) fail(`${l.id} tags must be non-empty strings`);
+      } else if (l.tags != null) fail(`${l.id} tags must be an array`);
+      for (const key of ['proteinG', 'fiberG', 'sodiumMg', 'sugarG']) {
+        if (l[key] != null && (!num(l[key]) || l[key] < 0)) fail(`${l.id} ${key} invalid`);
+      }
     }
   }
   if (!arrOk(s.pantries) || s.pantries.length === 0) fail('at least one pantry required');
@@ -244,7 +258,7 @@ export function validateScenario(raw) {
   if (!arrOk(s.households)) fail('households must be an array');
   for (const h of s.households || []) {
     if (typeof h?.id !== 'string' || !h.id) fail('household id required');
-    if (!num(h.size) || h.size < 1 || h.size > 30) fail(`${h.id} size invalid`);
+    if (!Number.isInteger(h.size) || h.size < 1 || h.size > 30) fail(`${h.id} size invalid`);
     if (arrOk(h.constraints)) {
       for (const c of h.constraints) if (!CONSTRAINTS.includes(c)) fail(`${h.id} unknown constraint ${c}`);
     } else if (h.constraints != null) fail(`${h.id} constraints must be an array`);
@@ -342,6 +356,7 @@ export function parseCSV(text) {
   }
   row.push(field);
   if (row.length > 1 || row[0] !== '') rows.push(row);
+  if (inQuotes) throw new SyntaxError('unterminated quoted CSV field');
   return rows;
 }
 
@@ -373,7 +388,12 @@ const toNum = (x) => (x === '' || x == null ? undefined : Number(x));
 const list = (x) => (x || '').split(';').map((t) => t.trim()).filter(Boolean);
 
 export function scenarioFromCSV(text) {
-  const rows = parseCSV(text).filter((r) => r.length && r[0] !== 'kind');
+  let rows;
+  try {
+    rows = parseCSV(text).filter((r) => r.length && r[0] !== 'kind');
+  } catch (err) {
+    return { ok: false, errors: [err.message], scenario: undefined };
+  }
   const s = { id: 'custom', name: 'Custom lot', donors: [], pantries: [], households: [] };
   const donorById = new Map();
   const errors = [];
@@ -431,7 +451,12 @@ export function lotsToCSV(lots) {
 }
 
 export function lotsFromCSV(text, idPrefix = 'lot') {
-  const rows = parseCSV(text).filter((r) => r.length > 1);
+  let rows;
+  try {
+    rows = parseCSV(text).filter((r) => r.length > 1);
+  } catch (err) {
+    return { ok: false, errors: [err.message], lots: [] };
+  }
   if (rows.length === 0) return { ok: false, errors: ['no rows'], lots: [] };
   const header = rows[0].map((h) => h.trim().toLowerCase());
   const hasHeader = header.includes('name') && header.includes('category');
