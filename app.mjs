@@ -154,6 +154,7 @@ function applyLang() {
   }
   $('selftest-close').setAttribute('aria-label', t(state.lang, 'closeLabel'));
   $('how-close').setAttribute('aria-label', t(state.lang, 'closeLabel'));
+  $('lang-btn').setAttribute('aria-label', t(state.lang, 'langAria'));
   renderExplainer();
   renderScenarioButtons();
   recompute();

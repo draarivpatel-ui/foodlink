@@ -1045,6 +1045,16 @@ footer {
 }
 
 @media (max-width: 900px) {
+  .btn, .scn, .tab {
+    min-width: 44px;
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  input[type="range"], input[type="text"], input[type="number"], select, textarea, summary { min-height: 44px; }
+  .tab { justify-content: flex-start; flex: none; }
+  .scn { justify-content: flex-start; }
   .dispatch-grid { grid-template-columns: 1fr; }
   .board-grid { grid-template-columns: 1fr; }
   .brief-card { position: static; }
@@ -1073,7 +1083,7 @@ footer {
   }
   .topbar h1 { grid-area: title; font-size: 24px; }
   .how-btn { grid-area: how; justify-self: end; }
-  .top-actions { grid-area: actions; justify-self: start; gap: 6px; flex-wrap: nowrap; }
+  .top-actions { grid-area: actions; justify-self: start; gap: 6px; flex-wrap: wrap; }
   .top-actions .btn { padding: 6px 9px; font-size: 12.5px; }
   .sim-badge { grid-area: badge; margin: 0; justify-self: start; white-space: normal; font-size: 12px; }
   .controls { padding: 12px 14px 12px; }

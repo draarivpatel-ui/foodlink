@@ -11,6 +11,7 @@ import { t } from '../src/i18n.mjs';
 
 const app = readFileSync(new URL('../app.mjs', import.meta.url), 'utf8');
 const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+const css = readFileSync(new URL('../styles.css', import.meta.url), 'utf8');
 const functionSource = name => {
   const start = app.indexOf('function ' + name + '(');
   assert.ok(start >= 0, name + ' exists in the app');
@@ -226,4 +227,20 @@ test('import and reset rebuild the lot donor choices for the active scenario', (
     SCENARIOS[0].donors.map((d) => d.name),
     'reset must replace stale donor options',
   );
+});
+
+test('language toggle accessible name contains its visible language code in both languages', () => {
+  const button = html.match(/<button id="lang-btn"[^>]*>ES<\/button>/)?.[0] || '';
+  assert.ok(button.includes('aria-label="ES, switch language to Spanish"'), button);
+  assert.ok(app.includes("$('lang-btn').setAttribute('aria-label', t(state.lang, 'langAria'))"));
+  assert.ok(t('en', 'langAria').includes('ES'));
+  assert.ok(t('es', 'langAria').includes('EN'));
+});
+
+test('mobile touch target regression keeps controls at least 44px tall', () => {
+  const block = css.match(/@media \(max-width: 900px\) \{([\s\S]*?)\n\}/)?.[1] || '';
+  assert.ok(block.includes('min-height: 44px'), '44px minimum height rule missing');
+  assert.ok(block.includes('min-width: 44px'), '44px minimum width rule missing');
+  assert.ok(block.includes('input[type="range"]'), 'range inputs are not covered');
+  assert.ok(block.includes('flex: none'), 'scrollable tabs must not shrink into overlap');
 });
