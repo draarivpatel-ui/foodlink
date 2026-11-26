@@ -327,7 +327,9 @@ export function exportStateJSON(state) {
 //   lot,donorId,id,name,category,kg,servings,freshHours,tempC,allergens(;),tags(;),proteinG,fiberG,sodiumMg,sugarG
 
 export function csvEscape(field) {
-  const s = field == null ? '' : String(field);
+  if (typeof field === 'number' && Number.isFinite(field)) return String(field);
+  let s = field == null ? '' : String(field);
+  if (/^[\s\u0085\u180E\u200B\u200C\u200D\u2060\uFEFF]*[=+\-@\t\r]/.test(s)) s = `'${s}`;
   if (/[",\n\r]/.test(s)) return `"${s.replaceAll('"', '""')}"`;
   return s;
 }

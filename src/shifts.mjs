@@ -187,6 +187,7 @@ export function normalizeClaims(raw) {
   for (const [id, c] of Object.entries(raw)) {
     if (n >= MAX_CLAIMS) break;
     if (!RUN_ID_RE.test(id)) continue;
+    if (id === '__proto__' || id === 'constructor' || id === 'prototype') continue;
     if (c == null || typeof c !== 'object' || Array.isArray(c)) continue;
     const by = sanitizeName(c.by);
     if (!by || !CLAIM_STATUSES.includes(c.status)) continue;

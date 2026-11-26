@@ -278,3 +278,10 @@ test('allLots returns copies, not references', () => {
   lots[0].kg = -1;
   assert.notEqual(s.donors.flatMap((d) => d.lots)[0].kg, -1);
 });
+
+test('csvEscape neutralizes formula triggers behind whitespace and invisible Unicode', () => {
+  for (const lead of [' ', '\t', '\u00A0', '\u200B', '\uFEFF']) {
+    assert.ok(csvEscape(`${lead}=cmd`).startsWith("'"), JSON.stringify(lead));
+  }
+  assert.equal(csvEscape('=cmd'), "'=cmd");
+});

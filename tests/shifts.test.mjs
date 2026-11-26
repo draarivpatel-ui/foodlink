@@ -392,3 +392,15 @@ test('no board string uses an em or en dash', () => {
     }
   }
 });
+
+test('normalizeClaims drops prototype-key run ids instead of writing them', () => {
+  const raw = {
+    '__proto__': { by: 'Ada', status: 'claimed' },
+    constructor: { by: 'Ada', status: 'claimed' },
+    prototype: { by: 'Ada', status: 'claimed' },
+    'run-1': { by: 'Ada', status: 'claimed' },
+  };
+  const out = normalizeClaims(raw);
+  assert.deepEqual(Object.keys(out), ['run-1']);
+  assert.equal(Object.getPrototypeOf(out), Object.prototype);
+});
