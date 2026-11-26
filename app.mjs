@@ -86,8 +86,12 @@ function loadFromHash() {
 
 function pickParams(p) {
   const out = {};
+  const ranges = {
+    ambientC: [-30, 60], elapsedMin: [0, 1440], capacityKg: [1, 5000],
+    speedKmh: [1, 120], coldChainMaxMin: [1, 1440],
+  };
   for (const k of ['ambientC', 'elapsedMin', 'capacityKg', 'speedKmh', 'coldChainMaxMin']) {
-    if (Number.isFinite(p[k])) out[k] = p[k];
+    if (Number.isFinite(p[k]) && p[k] >= ranges[k][0] && p[k] <= ranges[k][1]) out[k] = p[k];
   }
   return out;
 }

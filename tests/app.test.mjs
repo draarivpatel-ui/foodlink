@@ -89,6 +89,18 @@ for (const embedded of [false, true]) {
   });
 }
 
+test('hostile hash params outside the operating ranges are ignored', () => {
+  const { pickParams } = appFunctions(['pickParams'], {});
+  assert.deepEqual(pickParams({
+    ambientC: 999, elapsedMin: -5, capacityKg: 0, speedKmh: 0, coldChainMaxMin: -30,
+  }), {});
+  assert.deepEqual(pickParams({
+    ambientC: 26, elapsedMin: 30, capacityKg: 320, speedKmh: 30, coldChainMaxMin: 120,
+  }), {
+    ambientC: 26, elapsedMin: 30, capacityKg: 320, speedKmh: 30, coldChainMaxMin: 120,
+  });
+});
+
 test('language switching translates editor labels, slider names and tags without changing values', () => {
   const state = initialState();
   const nodes = [];
