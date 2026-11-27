@@ -29,26 +29,28 @@ const lot = (id, kg, over = {}) => ({ id, name: id, category: 'produce', kg, ser
 // ---------- haversine ----------
 
 test('haversine distance to self is zero', () => {
-  assert.equal(haversineKm({ lat: 29.7, lon: -95.4 }, { lat: 29.7, lon: -95.4 }), 0);
+  assert.equal(haversineKm({ lat: 0, lon: 0 }, { lat: 0, lon: 0 }), 0);
 });
 test('haversine: one degree of latitude is about 111 km', () => {
   const d = haversineKm({ lat: 0, lon: 0 }, { lat: 1, lon: 0 });
   assert.ok(d > 110 && d < 112, `${d} km`);
 });
 test('haversine is symmetric', () => {
-  const a = { lat: 29.7, lon: -95.4 };
-  const b = { lat: 29.71, lon: -95.44 };
+  const a = { lat: 0, lon: 0 };
+  const b = { lat: 0.01, lon: 0.02 };
   assert.ok(Math.abs(haversineKm(a, b) - haversineKm(b, a)) < 1e-12);
 });
 test('haversine satisfies triangle inequality on a three-point trip', () => {
-  const a = { lat: 29.7, lon: -95.4 };
-  const b = { lat: 29.72, lon: -95.42 };
-  const c = { lat: 29.69, lon: -95.38 };
+  const a = { lat: 0, lon: 0 };
+  const b = { lat: 0.02, lon: 0.01 };
+  const c = { lat: -0.01, lon: 0.03 };
   assert.ok(haversineKm(a, c) <= haversineKm(a, b) + haversineKm(b, c) + 1e-9);
 });
-test('haversine long-haul sanity: Houston to Chicago ~1500 km', () => {
-  const d = haversineKm({ lat: 29.76, lon: -95.37 }, { lat: 41.88, lon: -87.63 });
-  assert.ok(d > 1400 && d < 1600, `${d} km`);
+test('haversine long-haul sanity: Origin Hub A to Destination Hub B is about 3900 km', () => {
+  const originHubA = { lat: 0, lon: 0 };
+  const destinationHubB = { lat: 0, lon: 35 };
+  const d = haversineKm(originHubA, destinationHubB);
+  assert.ok(d > 3800 && d < 4100, `${d} km`);
 });
 
 // ---------- travel / CO2 ----------

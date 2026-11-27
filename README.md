@@ -2,6 +2,8 @@
 
 **Offline community food-rescue and perishable pantry allocation workbench.** Plan a rescue run in a browser tab: watch shelf life decay in real time, route a volunteer van inside cold-chain limits, and pack balanced household boxes that respect allergies and dietary needs. No accounts, no servers, no network. One HTML file, plain ES modules, zero dependencies.
 
+Live demo: `https://aariv.xyz/foodlink/`
+
 ## Why it exists
 
 Food rescue teams juggle three clocks at once: produce wilting at ambient temperature, the FDA 4-hour danger-zone budget for cold food, and pantry closing times. FoodLink turns that juggling act into a visible, hands-on planning surface so volunteers, student organizers and pantry staff can rehearse a run before anyone turns a key.
